@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>
+        {% block title %}
+        Rebalance Pro
+        {% endblock %}
+    </title>
+
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+
+            --bg-primary: #0F172A;
+            --bg-secondary: #1E293B;
+            --bg-hover: rgba(59, 130, 246, .12);
+
+            --accent: #3B82F6;
+
+            --text-primary: #F8FAFC;
+            --text-secondary: #94A3B8;
+
+            --border: rgba(255, 255, 255, .08);
+
+            --sidebar-width: 270px;
+        }
+
+        body {
+
+            font-family: 'Inter', sans-serif;
+
+            background: var(--bg-primary);
+
+            color: var(--text-primary);
+
+            min-height: 100vh;
+
+            overflow-x: hidden;
+        }
+
+        /* ==========================
+           SIDEBAR
+        ========================== */
+
+        .sidebar {
+
+            position: fixed;
+
+            top: 0;
+            left: 0;
+
+            width: var(--sidebar-width);
+            height: 100vh;
+
+            padding: 24px;
+
+            display: flex;
+            flex-direction: column;
+
+            background:
+                linear-gradient(
+                    180deg,
+                    #0F172A 0%,
+                    #111C36 100%
+                );
+
+            border-right: 1px solid var(--border);
+
+            box-shadow:
+                0 0 40px rgba(0, 0, 0, .35);
+
+            z-index: 1000;
+        }
+
+        /* ==========================
+           LOGO
+        ========================== */
+
+        .logo-area {
+
+            text-align: center;
+
+            margin-bottom: 40px;
+        }
+
+        .logo {
+
+            width: 72px;
+            height: 72px;
+
+            margin: 0 auto 16px;
+
+            border-radius: 18px;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            background:
+                linear-gradient(
+                    135deg,
+                    #3B82F6,
+                    #2563EB
+                );
+
+            box-shadow:
+                0 10px 30px rgba(59, 130, 246, .30);
+        }
+
+        .logo i {
+
+            font-size: 32px;
+            color: white;
+        }
+
+        .app-name {
+
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .app-name span {
+
+            color: var(--accent);
+        }
+
+        .app-subtitle {
+
+            margin-top: 8px;
+
+            font-size: 13px;
+
+            color: var(--text-secondary);
+        }
+
+        /* ==========================
+           MENU
+        ========================== */
+
+        .menu-section {
+
+            margin-bottom: 28px;
+        }
+
+        .menu-title {
+
+            color: var(--text-secondary);
+
+            text-transform: uppercase;
+
+            letter-spacing: 1px;
+
+            font-size: 11px;
+
+            margin-bottom: 12px;
+
+            padding-left: 8px;
+        }
+
+        .menu {
+
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .menu a {
+
+            text-decoration: none;
+
+            color: var(--text-secondary);
+
+            padding: 14px 16px;
+
+            border-radius: 14px;
+
+            display: flex;
+            align-items: center;
+            gap: 14px;
+
+            font-size: 15px;
+            font-weight: 500;
+
+            transition: all .25s ease;
+        }
+
+        .menu a i {
+
+            width: 20px;
+
+            text-align: center;
+
+            font-size: 16px;
+        }
+
+        .menu a:hover {
+
+            background: var(--bg-hover);
+
+            color: white;
+
+            transform: translateX(4px);
+        }
+
+        .menu a.active {
+
+            background:
+                linear-gradient(
+                    90deg,
+                    rgba(59,130,246,.22),
+                    rgba(59,130,246,.05)
+                );
+
+            color: white;
+
+            border: 1px solid rgba(59,130,246,.25);
+
+            box-shadow:
+                0 0 20px rgba(59,130,246,.12);
+        }
+
+        /* ==========================
+           FOOTER
+        ========================== */
+
+        .sidebar-footer {
+
+            margin-top: auto;
+        }
+
+        .version-card {
+
+            padding: 12px;
+
+            border-radius: 12px;
+
+            background:
+                rgba(255,255,255,.03);
+
+            border: 1px solid var(--border);
+
+            margin-bottom: 18px;
+        }
+
+        .version-label {
+
+            color: var(--text-secondary);
+
+            font-size: 12px;
+        }
+
+        .version-value {
+
+            margin-top: 4px;
+
+            font-weight: 600;
+        }
+
+        .user-card {
+
+            display: flex;
+            align-items: center;
+
+            gap: 12px;
+
+            padding: 12px;
+
+            border-radius: 12px;
+
+            background:
+                rgba(255,255,255,.03);
+
+            border: 1px solid var(--border);
+        }
+
+        .avatar {
+
+            width: 44px;
+            height: 44px;
+
+            border-radius: 50%;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            background: var(--bg-secondary);
+        }
+
+        .avatar i {
+
+            color: white;
+        }
+
+        .user-name {
+
+            font-size: 14px;
+
+            font-weight: 600;
+        }
+
+        .user-role {
+
+            font-size: 12px;
+
+            color: var(--text-secondary);
+        }
+
+        /* ==========================
+           CONTENT
+        ========================== */
+
+        .content {
+
+            margin-left: var(--sidebar-width);
+
+            min-height: 100vh;
+
+            padding: 40px;
+
+            background:
+                radial-gradient(
+                    circle at top right,
+                    rgba(59,130,246,.08),
+                    transparent 35%
+                );
+        }
+
+        /* ==========================
+           RESPONSIVO
+        ========================== */
+
+        @media(max-width: 900px) {
+
+            .sidebar {
+
+                width: 80px;
+            }
+
+            .app-name,
+            .app-subtitle,
+            .menu-title,
+            .user-info,
+            .version-card {
+
+                display: none;
+            }
+
+            .menu a {
+
+                justify-content: center;
+            }
+
+            .menu a span {
+
+                display: none;
+            }
+
+            .content {
+
+                margin-left: 80px;
+            }
+        }
+        /* ====================================
+        WRAPPER CENTRALIZADO
+        ==================================== */
+
+        .content-wrapper{
+            width:100%;
+            max-width:1600px;
+            margin:0 auto;
+        }
+
+        /* ====================================
+        BOTÃO MOBILE
+        ==================================== */
+
+        .mobile-toggle{
+
+            display:none;
+
+            position:fixed;
+
+            top:15px;
+            left:15px;
+
+            width:48px;
+            height:48px;
+
+            border:none;
+
+            border-radius:12px;
+
+            background:#1E293B;
+
+            color:white;
+
+            cursor:pointer;
+
+            z-index:2000;
+        }
+
+        /* ====================================
+        RESPONSIVO
+        ==================================== */
+
+        @media(max-width:768px){
+
+            .mobile-toggle{
+                display:flex;
+                align-items:center;
+                justify-content:center;
+            }
+
+            .sidebar{
+
+                transform:translateX(-100%);
+
+                transition:.3s ease;
+            }
+
+            .sidebar.open{
+
+                transform:translateX(0);
+            }
+
+            .content{
+
+                margin-left:0;
+
+                padding:
+                    80px
+                    16px
+                    20px
+                    16px;
+            }
+        }
+    </style>
+
+</head>
+
+<body>
+    <button
+        class="mobile-toggle"
+        onclick="toggleSidebar()">
+
+        <i class="fa-solid fa-bars"></i>
+
+    </button>
+
+    <aside class="sidebar">
+
+        <div class="logo-area">
+
+            <div class="logo">
+                <i class="fa-solid fa-chart-line"></i>
+            </div>
+
+            <div class="app-name">
+                Nexus<span>Pro</span>
+            </div>
+
+            <div class="app-subtitle">
+                Gestão inteligente da vida
+            </div>
+
+        </div>
+
+        <div class="menu-section">
+
+            <div class="menu-title">
+                Geral
+            </div>
+
+            <nav class="menu">
+
+                <a href="/"
+                   class="{% if request.path == '/' %}active{% endif %}">
+                    <i class="fa-solid fa-house"></i>
+                    <span>Visão Geral</span>
+                </a>
+
+            </nav>
+
+        </div>
+
+        <div class="menu-section">
+
+            <div class="menu-title">
+                Módulos
+            </div>
+
+            <nav class="menu">
+
+                <a href="/financeiro"
+                   class="{% if '/financeiro' in request.path %}active{% endif %}">
+                    <i class="fa-solid fa-chart-pie"></i>
+                    <span>Financeiro</span>
+                </a>
+
+                <a href="/produtividade"
+                   class="{% if '/produtividade' in request.path %}active{% endif %}">
+                    <i class="fa-solid fa-bolt"></i>
+                    <span>Produtividade</span>
+                </a>
+
+                <a href="/projetos"
+                   class="{% if '/projetos' in request.path %}active{% endif %}">
+                    <i class="fa-solid fa-diagram-project"></i>
+                    <span>Projetos</span>
+                </a>
+
+            </nav>
+
+        </div>
+
+        <div class="menu-section">
+
+            <div class="menu-title">
+                Sistema
+            </div>
+
+            <nav class="menu">
+
+                <a href="/configuracoes"
+                   class="{% if '/configuracoes' in request.path %}active{% endif %}">
+                    <i class="fa-solid fa-gear"></i>
+                    <span>Configurações</span>
+                </a>
+
+            </nav>
+
+        </div>
+
+        <div class="sidebar-footer">
+
+            <div class="version-card">
+
+                <div class="version-label">
+                    Versão
+                </div>
+
+                <div class="version-value">
+                    v1.0.0
+                </div>
+
+            </div>
+
+            <div class="user-card">
+
+                <div class="avatar">
+                    <i class="fa-solid fa-user"></i>
+                </div>
+
+                <div class="user-info">
+
+                    <div class="user-name">
+                        Bruno
+                    </div>
+
+                    <div class="user-role">
+                        Administrador
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </aside>
+
+    <main class="content">
+
+        <div class="content-wrapper">
+
+            {% block content %}
+            {% endblock %}
+
+        </div>
+
+    </main>
+    <script>
+    function toggleSidebar(){
+
+        document
+            .querySelector(".sidebar")
+            .classList
+            .toggle("open");
+
+    }
+
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Plataforma Modular{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    {% block head_extra %}{% endblock %}
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Menu lateral -->
+        {% include 'menu.html' %}
+        <!-- Conteúdo principal -->
+        <main class="main-content">
+            <header>
+                {% block header %}
+                <h1>{{ self.title() }}</h1>
+                <button class="theme-btn" onclick="toggleTheme()">🌙</button>
+                {% endblock %}
+            </header>
+            <div class="container">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

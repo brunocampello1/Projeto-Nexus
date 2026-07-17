@@ -1,0 +1,116 @@
+[
+  {
+    "ticker": "AURA33",
+    "display": "AURA33",
+    "peso": 0.0974,
+    "quantidade": 35
+  },
+  {
+    "ticker": "ITSA4",
+    "display": "ITSA4",
+    "peso": 0.1101,
+    "quantidade": 162
+  },
+  {
+    "ticker": "BBSE3",
+    "display": "BBSE3",
+    "peso": 0.0615,
+    "quantidade": 39
+  },
+  {
+    "ticker": "WIZC3",
+    "display": "WIZC3",
+    "peso": 0.0729,
+    "quantidade": 170
+  },
+  {
+    "ticker": "SUZB3",
+    "display": "SUZB3",
+    "peso": 0.0391,
+    "quantidade": 20
+  },
+  {
+    "ticker": "BMEB4",
+    "display": "BMEB4",
+    "peso": 0.101,
+    "quantidade": 23
+  },
+  {
+    "ticker": "KLBN3",
+    "display": "KLBN3",
+    "peso": 0.0489,
+    "quantidade": 192
+  },
+  {
+    "ticker": "TASA4",
+    "display": "TASA4",
+    "peso": 0.0246,
+    "quantidade": 166
+  },
+  {
+    "ticker": "UNIP6",
+    "display": "UNIP6",
+    "peso": 0.0629,
+    "quantidade": 15
+  },
+  {
+    "ticker": "TUPY3",
+    "display": "TUPY3",
+    "peso": 0.0243,
+    "quantidade": 40
+  },
+  {
+    "ticker": "ALUP3",
+    "display": "ALUP3",
+    "peso": 0.0589,
+    "quantidade": 63
+  },
+  {
+    "ticker": "VIVT3",
+    "display": "VIVT3",
+    "peso": 0.0751,
+    "quantidade": 41
+  },
+  {
+    "ticker": "TAEE3",
+    "display": "TAEE3",
+    "peso": 0.0284,
+    "quantidade": 36
+  },
+  {
+    "ticker": "EGIE3",
+    "display": "EGIE3",
+    "peso": 0.0354,
+    "quantidade": 19
+  },
+  {
+    "ticker": "ENEV3",
+    "display": "ENEV3",
+    "peso": 0.0451,
+    "quantidade": 32
+  },
+  {
+    "ticker": "FESA4",
+    "display": "FESA4",
+    "peso": 0.0583,
+    "quantidade": 112
+  },
+  {
+    "ticker": "CSAN3",
+    "display": "CSAN3",
+    "peso": 0.0077,
+    "quantidade": 39
+  },
+  {
+    "ticker": "SAPR3",
+    "display": "SAPR3",
+    "peso": 0.0418,
+    "quantidade": 69
+  },
+  {
+    "ticker": "CXSE3",
+    "display": "CXSE3",
+    "peso": 0.0066,
+    "quantidade": 3
+  }
+]
