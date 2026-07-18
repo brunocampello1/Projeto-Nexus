@@ -3,29 +3,161 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Plataforma Modular{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-    {% block head_extra %}{% endblock %}
+    <meta name="description" content="Gerencie seus hábitos, tarefas e controle financeiro com clareza e foco.">
+    <title>Gerenciador Pessoal</title>
+    
+    <!-- CSS Base -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='base/css/style.css') }}">
+    
+    <!-- Ícones Phosphor Icons (usados no layout original) -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    
+    <!-- Custom CSS para regras de layout e overflow solicitadas -->
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            flex-direction: column;
+        }
+
+        .app-container {
+            display: flex;
+            flex: 1;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        /* Regra de overflow para tabelas de dados/gráficos em telas pequenas */
+        .data-container, .table-wrap, .overflow-container {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* O page-shell ocupará o resto do espaço após a sidebar em telas maiores */
+        .page-shell {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-width: 0;
+        }
+
+        main.content {
+            flex: 1;
+            padding: 1rem;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .footer {
+            padding: 1rem;
+            text-align: center;
+            font-size: 0.875rem;
+            color: var(--text-secondary, #666);
+            border-top: 1px solid var(--border-color, #eee);
+        }
+
+        @media (min-width: 768px) {
+            body {
+                flex-direction: row;
+            }
+            .sidebar {
+                transform: translateX(0) !important;
+                position: static !important;
+                flex-shrink: 0;
+            }
+            main.content {
+                padding: 2rem;
+            }
+        }
+    </style>
 </head>
 <body>
-    <div class="app-layout">
-        <!-- Menu lateral -->
-        {% include 'menu.html' %}
-        <!-- Conteúdo principal -->
-        <main class="main-content">
-            <header>
-                {% block header %}
-                <h1>{{ self.title() }}</h1>
-                <button class="theme-btn" onclick="toggleTheme()">🌙</button>
-                {% endblock %}
-            </header>
-            <div class="container">
-                {% block content %}{% endblock %}
+    <div class="app-container">
+        <!-- Overlay para fechar sidebar no mobile -->
+        <div class="sidebar-overlay" id="sidebarOverlay" aria-hidden="true"></div>
+
+        <!-- Sidebar / Navegação -->
+        <nav class="sidebar" id="sidebar" aria-label="Navegação Principal">
+            <!-- Botão fechar dentro da sidebar no mobile -->
+            <button class="sidebar-close-btn" id="sidebarCloseBtn" aria-label="Fechar menu" type="button">
+                <i class="ph ph-x" aria-hidden="true"></i>
+            </button>
+
+            <div class="sidebar-brand">
+                <span class="brand-mark" aria-hidden="true">M</span>
+                <div>
+                    <p class="brand-label">Monitoramento</p>
+                    <h2>Meu Hub</h2>
+                </div>
             </div>
-        </main>
+
+            <ul class="sidebar-menu" role="menu">
+                <li class="sidebar-item" role="menuitem">
+                    <button class="sidebar-toggle" id="productivityToggle" aria-expanded="false" aria-controls="productivitySubmenu">
+                        <i class="ph ph-rocket" style="font-size: 1rem;" aria-hidden="true"></i>
+                        <span>Produtividade</span>
+                        <i class="ph ph-caret-down submenu-arrow" style="margin-left:auto; font-size:0.9rem; transition: transform 0.3s ease;" aria-hidden="true"></i>
+                    </button>
+                    <ul class="submenu" id="productivitySubmenu" style="display:none; list-style:none; padding-left:1rem;" role="menu">
+                        <li role="menuitem">
+                            <a href="{{ url_for('habitos') }}" style="display:flex; align-items:center; gap:0.5rem; text-decoration:none;">
+                                <i class="ph ph-check-circle" style="font-size: 1rem;" aria-hidden="true"></i><span>Hábitos</span>
+                            </a>
+                        </li>
+                        <li role="menuitem">
+                            <a href="{{ url_for('tarefas') }}" style="display:flex; align-items:center; gap:0.5rem; text-decoration:none;">
+                                <i class="ph ph-list-checks" style="font-size: 1rem;" aria-hidden="true"></i><span>Tarefas</span>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+                <li class="sidebar-item" role="menuitem">
+                    <a href="{{ url_for('financeiro.index') }}" class="sidebar-link" style="display:flex; align-items:center; gap:1rem; padding:1rem; color:var(--text-color); text-decoration:none; border-radius:8px;">
+                        <i class="ph ph-currency-dollar" style="font-size: 1rem;" aria-hidden="true"></i><span>Financeiro</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+
+        <div class="page-shell">
+            <!-- Cabeçalho -->
+            <header class="topbar">
+                <!-- Botão hamburger - visível apenas no mobile -->
+                <button class="hamburger-btn" id="hamburgerBtn" aria-label="Abrir menu" type="button" aria-expanded="false" aria-controls="sidebar">
+                    <i class="ph ph-list" aria-hidden="true"></i>
+                </button>
+                <div class="topbar-title" style="display:flex; flex-direction:column; justify-content:center; gap:2px; margin-left: 0.5rem;">
+                    {% block topbar_title %}{% endblock %}
+                </div>
+                <div style="flex: 1;"></div>
+                <div class="topbar-actions">
+                    {% block topbar_actions %}{% endblock %}
+                    <button class="theme-toggle" id="themeToggle" type="button" aria-label="Alternar tema">
+                        <i class="ph ph-moon" style="font-size: 0.9rem;" aria-hidden="true"></i>
+                        <span class="theme-label">Escuro</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Conteúdo Principal -->
+            <main class="content" role="main">
+                {% block content %}{% endblock %}
+            </main>
+            
+            <!-- Rodapé -->
+            <footer class="footer">
+                <p>&copy; 2024 Monitoramento - Meu Hub Pessoal. Todos os direitos reservados.</p>
+            </footer>
+        </div>
     </div>
-    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
-    {% block scripts %}{% endblock %}
+
+    <!-- Scripts no final do corpo para otimizar carregamento -->
+    <script src="{{ url_for('static', filename='base/js/app.js') }}"></script>
+    <script src="{{ url_for('static', filename='base/js/status.js') }}"></script>
+    <script src="{{ url_for('static', filename='base/js/dragdrop.js') }}"></script>
 </body>
 </html>

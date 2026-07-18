@@ -1,0 +1,224 @@
+{% extends 'base.html' %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='produtividade/habito/css/habito.css') }}">
+<script defer src="{{ url_for('static', filename='produtividade/habito/js/habito.js') }}"></script>
+<div class="header">
+    <h1>Monitoramento de Hábitos</h1>
+    <p>Acompanhe seus hábitos dos últimos 7 dias.</p>
+</div>
+
+<!-- SEÇÃO DE KPIs -->
+<div class="kpis-container">
+    <!-- Card Principal: Taxa de Conclusão Geral -->
+    <div class="kpi-card kpi-main">
+        <div class="kpi-header">
+            <span class="kpi-label">Taxa de Conclusão</span>
+            <i class="ph ph-target"></i>
+        </div>
+        <div class="kpi-value">{{ kpis.taxa_conclusao_geral }}%</div>
+        <div class="kpi-description">desde o cadastro até 31/12/{{ now.year }}</div>
+    </div>
+
+    <!-- Card: Tendência -->
+    <div class="kpi-card kpi-trend {% if tendencia.direcao == 'up' %}trend-up{% elif tendencia.direcao == 'down' %}trend-down{% else %}trend-stable{% endif %}">
+        <div class="kpi-header">
+            <span class="kpi-label">Tendência</span>
+            <i class="ph {% if tendencia.direcao == 'up' %}ph-trend-up{% elif tendencia.direcao == 'down' %}ph-trend-down{% else %}ph-minus{% endif %}"></i>
+        </div>
+        <div class="kpi-value">
+            {% if tendencia.direcao == 'up' %}+{% elif tendencia.direcao == 'down' %}-{% endif %}{{ tendencia.diferenca|abs }}%
+        </div>
+        <div class="kpi-description">em relação à semana passada</div>
+    </div>
+
+    <!-- Card: Melhor Hábito -->
+    <div class="kpi-card kpi-best">
+        <div class="kpi-header">
+            <span class="kpi-label">Melhor Hábito</span>
+            <i class="ph ph-medal"></i>
+        </div>
+        {% if kpis.melhor_habito %}
+            <div class="kpi-value">{{ kpis.melhor_habito.taxa }}%</div>
+            <div class="kpi-description">{{ kpis.melhor_habito.nome }}</div>
+        {% else %}
+            <div class="kpi-value">--</div>
+            <div class="kpi-description">Nenhum dado ainda</div>
+        {% endif %}
+    </div>
+
+    <!-- Card: Cumprimento de Metas -->
+    <div class="kpi-card kpi-goals">
+        <div class="kpi-header">
+            <span class="kpi-label">Metas Cumpridas</span>
+            <i class="ph ph-check-square"></i>
+        </div>
+        <div class="kpi-value">{{ kpis.taxa_cumprimento_metas }}%</div>
+        <div class="kpi-description">dos seus hábitos atingiram meta</div>
+    </div>
+</div>
+
+<form action="{{ url_for('add_habito') }}" method="POST" class="add-form">
+    <input type="text" name="nome" placeholder="Novo hábito (ex: Ler 10 páginas, Correr 5km)..." required>
+    <button type="submit">Adicionar Hábito</button>
+</form>
+
+<div class="card habits-table-container">
+    {% if habitos %}
+    <table class="habits-table">
+        <thead>
+            <!-- Navegação Semanal integrada no cabeçalho da Tabela -->
+            <tr class="table-nav-row">
+                <th colspan="8">
+                    <div class="week-navigation-embedded">
+                        <a href="{{ url_for('habitos', week_offset=week_offset - 1) }}" class="nav-week-btn-small" title="Semana Anterior">
+                            <i class="ph ph-caret-left"></i>
+                        </a>
+                        <span class="week-label-embedded">
+                            <span class="day-full">Semana: {{ dias[0].strftime('%d/%m/%Y') }} a {{ dias[-1].strftime('%d/%m/%Y') }}</span>
+                            <span class="day-short">{{ dias[0].strftime('%d/%m') }} - {{ dias[-1].strftime('%d/%m') }}</span>
+                        </span>
+                        <a href="{{ url_for('habitos', week_offset=week_offset + 1) }}" class="nav-week-btn-small" title="Semana Seguinte">
+                            <i class="ph ph-caret-right"></i>
+                        </a>
+                    </div>
+                </th>
+            </tr>
+            <tr class="table-headers-row">
+                <th class="habit-name-col">Hábito</th>
+                {% for dia in dias %}
+                <th>
+                    <span class="day-full">{{ dia.strftime('%d/%m') }}</span>
+                    <span class="day-short">{{ dia.strftime('%d') }}</span>
+                </th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for habito in habitos %}
+            <tr>
+                <td class="habit-name-col">
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; width: 100%;">
+                        <span class="habit-name-text" style="font-weight: 600; font-size: 0.95rem; color: var(--text-primary); text-overflow: ellipsis; overflow: hidden; white-space: nowrap;" title="{{ habito.nome }}">{{ habito.nome }}</span>
+                        <!-- Botão de Excluir Hábito -->
+                        <form action="{{ url_for('delete_habito', habito_id=habito.id) }}" method="POST" style="margin: 0;" onsubmit="return confirm('Tem certeza que deseja excluir este hábito?');">
+                            <button type="submit" class="delete-btn" title="Excluir hábito" style="padding: 2px; margin: 0;">
+                                <i class="ph ph-trash" style="font-size: 0.85rem;"></i>
+                            </button>
+                        </form>
+                    </div>
+                </td>
+                {% for dia in dias %}
+                <td>
+                    {% set ns = namespace(concluido=false) %}
+                    {% for reg in habito.registros %}
+                        {% if reg.data == dia %}
+                            {% set ns.concluido = reg.concluido %}
+                        {% endif %}
+                    {% endfor %}
+                    <div style="display: flex; justify-content: center;">
+                        <button type="button" class="toggle-btn habit-toggle {% if ns.concluido %}active{% endif %}"
+                                data-habito="{{ habito.id }}"
+                                data-data="{{ dia.strftime('%Y-%m-%d') }}"
+                                style="font-size: 1.4rem; display: flex; align-items: center;">
+                            {% if ns.concluido %}
+                                <i class="ph-fill ph-check-circle"></i>
+                            {% else %}
+                                <i class="ph ph-circle"></i>
+                            {% endif %}
+                        </button>
+                    </div>
+                </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div style="padding: 1.5rem; text-align: center; color: var(--text-secondary); font-size: 0.9rem;">
+        Nenhum hábito cadastrado ainda. Adicione seu primeiro hábito acima!
+    </div>
+    {% endif %}
+</div>
+
+<!-- RANKING DE HÁBITOS -->
+{% if kpis.habitos_por_performance %}
+<div class="card ranking-card">
+    <h2 style="margin-top: 0;">Ranking de Performance</h2>
+    <div class="ranking-list">
+        {% for habito in kpis.habitos_por_performance %}
+            <div class="ranking-item {% if habito.meta_atingida %}meta-atingida{% endif %}">
+                <div class="ranking-position">{{ loop.index }}</div>
+                <div class="ranking-info">
+                    <div class="ranking-name">{{ habito.nome }}</div>
+                    <div class="ranking-stats">
+                        <span class="conclusoes-meta" title="dias concluídos / total de dias no período">{{ habito.conclusoes }}/{{ habito.total_periodo }}d</span>
+                        {% if habito.meta_atingida %}
+                            <i class="ph-fill ph-check-circle" style="color: #10B981; margin-left: 0.5rem;"></i>
+                        {% endif %}
+                        <span class="ranking-streak-divider" style="margin: 0 0.25rem; opacity: 0.4;">|</span>
+                        <i class="ph ph-fire" style="color: #ff6b35; margin-right: 0.5rem;"></i>
+                        <span class="streak-value" style="font-weight: 500;">{{ habito.streak }} dias</span>
+                        <span class="ranking-streak-divider" style="margin: 0 0.25rem; opacity: 0.4;">|</span>
+                        <span style="color: var(--text-secondary); font-size: 0.75rem;">desde {{ habito.data_criacao }}</span>
+                        <button class="honeycomb-btn" data-habito-id="{{ habito.id }}" data-habito-nome="{{ habito.nome }}" title="Ver histórico de colmeia" type="button">
+                            <i class="ph-fill ph-hexagon"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="ranking-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: {{ habito.taxa }}%"></div>
+                    </div>
+                    <span class="progress-text">{{ habito.taxa }}%</span>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Modal de Histórico de Colmeia -->
+<div id="honeycombModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="modalHabitName">Histórico do Hábito</h2>
+            <button class="close-modal-btn" onclick="closeHoneycombModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div id="honeycombLoading" class="loading-spinner-container">
+                <div class="loading-spinner"></div>
+                <p>Carregando histórico...</p>
+            </div>
+            <div id="honeycombContent" style="display: none;">
+                <div class="honeycomb-wrapper">
+                    <div id="honeycombChartContainer"></div>
+                </div>
+                <div class="honeycomb-stats-summary">
+                    <div class="hc-stat-card">
+                        <span class="hc-stat-label">Conclusões (30d)</span>
+                        <span class="hc-stat-value" id="hcStatCompletions">0 / 30</span>
+                    </div>
+                    <div class="hc-stat-card">
+                        <span class="hc-stat-label">Taxa Sucesso</span>
+                        <span class="hc-stat-value" id="hcStatRate">0%</span>
+                    </div>
+                    <div class="hc-stat-card">
+                        <span class="hc-stat-label">Streak Atual</span>
+                        <span class="hc-stat-value" id="hcStatStreak">0 dias</span>
+                    </div>
+                </div>
+                <div class="honeycomb-legend">
+                    <div class="legend-item">
+                        <span class="legend-hex legend-completed"></span>
+                        <span>Concluído</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-hex legend-incomplete"></span>
+                        <span>Não concluído</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

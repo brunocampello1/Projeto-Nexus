@@ -1,0 +1,1662 @@
+{% extends "base.html" %}
+
+{% block title %}
+Financeiro
+{% endblock %}
+
+{% block topbar_title %}
+<h1 style="margin:0; font-size: 1.15rem; letter-spacing: -0.02em; font-weight: 600; color: var(--text-primary);">Financeiro</h1>
+<p class="topbar-subtitle" style="margin:0; font-size: 0.75rem; color: var(--text-secondary);">Gestão e rebalanceamento da carteira de investimentos</p>
+{% endblock %}
+
+{% block topbar_actions %}
+<button class="btn btn-secondary btn-topbar-action" onclick="abrirHistoricoBackups()">
+    <i class="ph ph-clock-counter-clockwise"></i>
+    <span class="btn-label-text">Backups</span>
+</button>
+<button class="btn btn-secondary btn-topbar-action btn-clear-portfolio" onclick="abrirModalLimparCarteira()">
+    <i class="ph ph-trash"></i>
+    <span class="btn-label-text">Limpar</span>
+</button>
+{% endblock %}
+
+{% block content %}
+<style>
+  /* ============================================
+     FINANCEIRO — CSS LIMPO (Mobile-First)
+     ============================================ */
+
+  /* Aliases de variáveis globais */
+  .financeiro-context {
+    --bg: var(--bg-color);
+    --surface2: var(--surface-strong);
+    --border: var(--border-color);
+    --text: var(--text-primary);
+    --muted: var(--text-secondary);
+    --green: var(--success-color);
+    --red: var(--danger-color);
+    --yellow: var(--warning-color);
+    --blue: var(--accent-color);
+    --green-dim: rgba(16, 185, 129, 0.1);
+    --red-dim: rgba(239, 68, 68, 0.1);
+    --yellow-dim: rgba(245, 158, 11, 0.1);
+    --radius: 12px;
+    --transition: 0.2s ease;
+  }
+
+  .mono { font-family: 'JetBrains Mono', monospace; }
+
+  /* ---- Container ---- */
+  .container {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* ---- KPI Cards ---- */
+  .summary {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    transition: box-shadow var(--transition), transform var(--transition);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .card:hover {
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    transform: translateY(-2px);
+  }
+
+  .card .label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .card .value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--blue);
+    letter-spacing: -0.03em;
+    margin-top: 6px;
+  }
+
+  .card-subtitle {
+    color: var(--muted);
+    font-size: 13px;
+    margin-top: 4px;
+  }
+
+  .card-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 12px 0;
+  }
+
+  .card-details {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: auto;
+  }
+
+  .detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .detail-row span {
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  .detail-row strong {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  /* ---- Status ---- */
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+    flex-shrink: 0;
+  }
+  .status-dot.loading { background: var(--yellow); animation: pulse 1s infinite; }
+  .status-dot.ok      { background: var(--green); }
+  .status-dot.error   { background: var(--red); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  /* ---- Controls ---- */
+  .controls {
+    background: var(--surface);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    padding: 16px;
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .controls-inputs {
+    display: flex;
+    gap: 12px;
+  }
+
+  .controls-inputs .field {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .field { display: flex; flex-direction: column; }
+  .field label {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 6px;
+  }
+  .field input, .field select {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    padding: 8px 12px;
+    outline: none;
+    transition: border var(--transition), background var(--transition);
+  }
+  .field input:focus, .field select:focus {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.15);
+  }
+
+  .controls-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  /* ---- Buttons ---- */
+  .btn {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 9px 16px;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    letter-spacing: 0.02em;
+  }
+  .btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  }
+  .btn:active:not(:disabled) {
+    transform: translateY(0);
+  }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  .btn-primary {
+    background: linear-gradient(180deg, #1E293B 0%, #0F172A 100%);
+    color: #F8FAFC;
+    border: 1px solid #334155;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: linear-gradient(180deg, #334155 0%, #1E293B 100%);
+    border-color: #475569;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+    filter: none;
+  }
+  .btn-secondary {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover:not(:disabled) {
+    background: var(--surface2);
+    border-color: var(--muted);
+  }
+  .btn-danger {
+    background: var(--red-dim);
+    border: 1px solid var(--red);
+    color: var(--red);
+  }
+  .btn-danger:hover:not(:disabled) {
+    background: rgba(239, 68, 68, 0.2);
+  }
+  .btn-sm { font-size: 12px; padding: 6px 10px; border-radius: 8px; }
+
+  /* ---- Toolbar / Legend ---- */
+  .toolbar {
+    background: var(--surface);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .legend { display: flex; gap: 16px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+  .legend span { display: flex; align-items: center; gap: 6px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .toolbar-right { display: flex; gap: 10px; }
+  .peso-warn {
+    background: var(--yellow-dim);
+    border: 1px solid var(--yellow);
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-size: 12px;
+    color: var(--yellow);
+    display: none;
+    font-weight: 500;
+  }
+
+  /* ============================================
+     TABELA — DESKTOP (visível >768px)
+     ============================================ */
+  .table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: auto;
+    max-height: 65vh;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table-wrap table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 12px;
+    text-align: right;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  thead th:first-child { text-align: left; }
+  thead th.center { text-align: center; }
+
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--surface2); }
+
+  td {
+    padding: 10px 12px;
+    text-align: right;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    white-space: nowrap;
+    vertical-align: middle;
+    color: var(--text);
+  }
+  td:first-child {
+    text-align: left;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--blue);
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .badge.ok   { background: var(--yellow-dim); color: var(--yellow); }
+  .badge.buy  { background: var(--green-dim);  color: var(--green); }
+  .badge.sell { background: var(--red-dim);    color: var(--red); }
+
+  .pos  { color: var(--red); }
+  .neg  { color: var(--green); }
+  .zero { color: var(--muted); }
+  .no-data { color: var(--muted); opacity: 0.7; }
+  .sugestao { color: var(--green); font-size: 11px; line-height: 1.5; }
+
+  .qty-input, .peso-input {
+    width: 65px;
+    text-align: right;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    padding: 4px 8px;
+    outline: none;
+    transition: all var(--transition);
+  }
+  .qty-input:focus, .peso-input:focus {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.15);
+  }
+  .peso-input.invalid { border-color: var(--red) !important; }
+
+  .add-ativo-btn {
+    margin-left: 8px;
+    background: var(--green);
+    border: none;
+    color: #fff;
+    border-radius: 6px;
+    padding: 2px 10px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.4;
+    transition: opacity 0.2s;
+  }
+  .add-ativo-btn:hover { opacity: 0.85; }
+
+  /* ============================================
+     CARDS MOBILE (visível <769px)
+     ============================================ */
+  .mobile-cards { display: none; }
+
+  .ativo-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+
+  .ativo-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    cursor: pointer;
+    gap: 10px;
+    user-select: none;
+  }
+  .ativo-card-header:hover {
+    background: var(--surface2);
+  }
+
+  .ativo-card-ticker {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--blue);
+    min-width: 70px;
+  }
+
+  .ativo-card-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--text);
+    flex: 1;
+    text-align: right;
+  }
+
+  .ativo-card-chevron {
+    color: var(--muted);
+    font-size: 16px;
+    transition: transform 0.2s;
+  }
+
+  .ativo-card[open] .ativo-card-chevron {
+    transform: rotate(180deg);
+  }
+
+  .ativo-card-body {
+    display: none;
+    padding: 0 16px 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .ativo-card[open] .ativo-card-body {
+    display: block;
+  }
+
+  .ativo-card-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .ativo-card-row:last-child { border-bottom: none; }
+
+  .ativo-card-row .row-label {
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .ativo-card-row .row-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    text-align: right;
+  }
+
+  .ativo-card-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .ativo-card-actions .field {
+    flex: 1;
+  }
+
+  .ativo-card-actions .field input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    padding: 8px 10px;
+    text-align: center;
+    outline: none;
+  }
+  .ativo-card-actions .field input:focus {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.15);
+  }
+
+  /* ---- Modal ---- */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .f-modal {
+    display: block;
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    width: 440px;
+    max-width: 92vw;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+  .f-modal h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 20px;
+    color: var(--text);
+  }
+  .f-modal .field { margin-bottom: 16px; }
+  .f-modal .field label {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.07em;
+    text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 6px;
+  }
+  .f-modal .field input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    padding: 10px 14px;
+    outline: none;
+    transition: all var(--transition);
+  }
+  .f-modal .field input:focus {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.15);
+  }
+  .f-modal .hint { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .modal-footer { display: flex; gap: 10px; margin-top: 22px; justify-content: flex-end; }
+  .modal-error {
+    background: var(--red-dim);
+    border: 1px solid var(--red);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: var(--red);
+    margin-bottom: 14px;
+    display: none;
+  }
+
+  /* Autocomplete */
+  .autocomplete-wrapper { position: relative; }
+  .ticker-results {
+    position: absolute;
+    top: 100%; left: 0; right: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-top: 4px;
+    max-height: 250px;
+    overflow-y: auto;
+    z-index: 9999;
+    display: none;
+  }
+  .ticker-item {
+    padding: 10px 14px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+  }
+  .ticker-item:hover { background: var(--surface2); }
+  .ticker-item:last-child { border-bottom: none; }
+  .ticker-symbol { font-weight: 700; color: var(--blue); font-size: 13px; }
+  .ticker-name { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* ---- Backup Modal ---- */
+  .backup-list-item {
+    padding: 12px 16px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    transition: background 0.15s;
+  }
+  .backup-list-item:hover { background: var(--surface2); }
+  .backup-info { flex: 1; min-width: 0; }
+  .backup-info strong { display: block; font-size: 13px; color: var(--text); margin-bottom: 2px; }
+  .backup-info small { font-size: 11px; color: var(--muted); word-break: break-all; }
+
+  /* ---- Topbar actions on mobile ---- */
+  .btn-topbar-action {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+  }
+
+  .btn-clear-portfolio {
+    color: var(--red);
+    border-color: rgba(239, 68, 68, 0.25);
+  }
+  .btn-clear-portfolio:hover:not(:disabled) {
+    background: var(--red-dim);
+    border-color: var(--red);
+  }
+
+  /* ---- Download Recommendations Button ---- */
+  .btn-download-wrap {
+    display: none;
+    margin-bottom: 16px;
+  }
+  .btn-download-wrap.visible {
+    display: block;
+    animation: fadeInGlow 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  .btn-download {
+    width: 100%;
+    padding: 14px 24px;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: var(--radius);
+    background: linear-gradient(135deg, #059669 0%, #10B981 100%);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.15);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-family: 'Inter', sans-serif;
+    letter-spacing: 0.02em;
+    transition: all 0.25s ease;
+    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.25);
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-download::after {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.4), transparent, rgba(16, 185, 129, 0.2));
+    
+    transition: opacity 0.3s;
+  }
+  .btn-download:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(16, 185, 129, 0.35);
+  }
+  .btn-download:hover::after {
+    opacity: 1;
+  }
+  .btn-download:active {
+    transform: translateY(0);
+  }
+
+  @keyframes fadeInGlow {
+    0% {
+      
+      transform: translateY(8px);
+      box-shadow: 0 0 0 rgba(16, 185, 129, 0);
+    }
+    60% {
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+      box-shadow: 0 4px 16px rgba(16, 185, 129, 0.25);
+    }
+  }
+
+  /* Confirmation modal danger style */
+  .modal-danger-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--red-dim);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+    color: var(--red);
+    font-size: 24px;
+  }
+  .modal-danger-text {
+    text-align: center;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 8px;
+  }
+  .btn-confirm-danger {
+    background: var(--red);
+    color: #fff;
+    border: 1px solid var(--red);
+    padding: 10px 24px;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    transition: all 0.2s;
+  }
+  .btn-confirm-danger:hover {
+    background: #DC2626;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  }
+
+  /* ============================================
+     MEDIA QUERIES — RESPONSIVIDADE
+     ============================================ */
+
+  /* Tablet */
+  @media (min-width: 640px) {
+    .summary {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .controls {
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: flex-end;
+    }
+    .controls-inputs {
+      flex: 0 0 auto;
+    }
+    .controls-actions {
+      flex: 1;
+      justify-content: flex-start;
+    }
+  }
+
+  /* Desktop */
+  @media (min-width: 1024px) {
+    .summary {
+      grid-template-columns: repeat(3, 1fr);
+    }
+    .card .value {
+      font-size: 30px;
+    }
+  }
+
+  /* Mobile: cards instead of table */
+  @media (max-width: 768px) {
+    .table-wrap { display: none; }
+    .mobile-cards { display: block; }
+
+    .controls-actions .btn {
+      flex: 1 1 calc(50% - 5px);
+      font-size: 12px;
+      padding: 10px 8px;
+    }
+
+    .toolbar {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .topbar-subtitle { display: none; }
+
+    .btn-topbar-action .btn-label-text { display: none; }
+    .btn-topbar-action { padding: 6px 10px; }
+  }
+
+  @media (max-width: 480px) {
+    .controls-actions .btn {
+      flex: 1 1 100%;
+    }
+    .summary { gap: 12px; }
+    .card { padding: 16px; }
+    .card .value { font-size: 22px; }
+  }
+</style>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+<div class="container financeiro-context">
+
+  <!-- KPI Cards -->
+  <div class="summary">
+    <div class="card">
+        <div class="label">Patrimônio Total</div>
+        <div class="value" id="val-carteira">
+            R$ {{ "%.2f"|format(resultado.valor_carteira) }}
+        </div>
+        <div class="card-subtitle">
+            {{ portfolio|length }} ativos em carteira
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="label" style="margin-bottom:12px;">Gestão de Caixa</div>
+        <div class="card-details">
+            <div class="detail-row">
+                <span>Aporte Atual</span>
+                <strong id="val-aporte">R$ {{ "%.2f"|format(resultado.aporte) }}</strong>
+            </div>
+            <div class="card-divider"></div>
+            <div class="detail-row">
+                <span>Saldo Pós-aporte</span>
+                <strong id="val-saldo">R$ 0,00</strong>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="label" style="margin-bottom:12px;">Saúde e Status</div>
+        <div class="card-details">
+            <div class="detail-row">
+                <span>Soma dos Pesos</span>
+                <strong id="val-soma-pesos">—</strong>
+            </div>
+            <div class="card-divider"></div>
+            <div class="detail-row">
+                <span>Situação</span>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <div class="status-dot ok" id="status-dot"></div>
+                    <span id="status-msg" style="color:var(--text); font-weight:500;">Pronto</span>
+                </div>
+            </div>
+        </div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <div class="controls-inputs">
+      <div class="field">
+        <label for="aporte">Aporte (R$)</label>
+        <input type="number" id="aporte" value="0" min="0" step="100" placeholder="0,00">
+      </div>
+      <div class="field">
+        <label for="tolerancia">Tolerância (%)</label>
+        <input type="number" id="tolerancia" value="2" min="0.5" max="10" step="0.5">
+      </div>
+    </div>
+    <div class="controls-actions">
+        <button class="btn btn-secondary" id="btn-cotacoes" onclick="atualizarCotacoes()">
+            <i class="ph ph-arrows-clockwise"></i> Cotações
+        </button>
+        <button class="btn btn-secondary" onclick="redistribuirPesos()">
+            <i class="ph ph-arrows-out-line-horizontal"></i> Redistribuir
+        </button>
+        <button class="btn btn-primary" id="btn-calcular" onclick="calcular()">
+            <i class="ph ph-scales"></i> Rebalancear
+        </button>
+        <button class="btn btn-primary" onclick="aplicarAlteracoes()">
+            <i class="ph ph-check-circle"></i> Aplicar
+        </button>
+    </div>
+  </div>
+
+  <!-- Download Recommendations (hidden until rebalance) -->
+  <div class="btn-download-wrap" id="download-wrap">
+    <button class="btn-download" onclick="baixarRecomendacoes()">
+      <i class="ph ph-download-simple" style="font-size:18px;"></i>
+      Baixar Recomendações de Compra
+    </button>
+  </div>
+
+  <!-- Toolbar / Legend -->
+  <div class="toolbar">
+    <div class="legend">
+      <span><div class="dot" style="background:var(--green)"></div> Comprar</span>
+      <span><div class="dot" style="background:var(--red)"></div> Manter</span>
+      <span><div class="dot" style="background:var(--yellow)"></div> Peso aceitável</span>
+    </div>
+    <div class="toolbar-right">
+      <div class="peso-warn" id="peso-warn">⚠ Soma dos pesos ≠ 100%</div>
+    </div>
+  </div>
+
+  <!-- Tabela DESKTOP -->
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="text-align:left;">
+              Ativo
+              <button type="button" class="add-ativo-btn" onclick="abrirModal(event)">+</button>
+          </th>
+          <th class="center">Qtd.</th>
+          <th>Peso Alvo %</th>
+          <th>Preço (R$)</th>
+          <th>Valor Atual</th>
+          <th>Peso Atual %</th>
+          <th>Δ Peso %</th>
+          <th>Necessidade</th>
+          <th class="center">Orientação</th>
+          <th>Sugestão</th>
+          <th class="center">Ação</th>
+        </tr>
+      </thead>
+      <tbody id="tbody">
+        {% for ativo in resultado.ativos %}
+        <tr data-ticker="{{ ativo.display }}">
+          <td>{{ ativo.display }}</td>
+          <td style="text-align:center">
+            <input class="qty-input" type="number" min="0"
+                   data-ativo="{{ ativo.display }}"
+                   value="{{ ativo.quantidade }}"
+                   onchange="marcarAlterado()">
+          </td>
+          <td style="text-align:center">
+            <input class="peso-input" type="number" min="0" max="100" step="0.01"
+                   data-ativo="{{ ativo.display }}"
+                   value="{{ '%.2f'|format(ativo.peso_recomendado | default(0)) }}"
+                   onchange="onPesoChange()">
+          </td>
+          <td id="preco-{{ ativo.display }}">
+            {% if ativo.preco_atual > 0 %}
+              R$ {{ "%.2f"|format(ativo.preco_atual) }}
+            {% else %}
+              <span class="no-data">—</span>
+            {% endif %}
+          </td>
+          <td class="{% if ativo.valor_atual == 0 %}no-data{% endif %}" id="valor-{{ ativo.display }}">
+            {% if ativo.valor_atual > 0 %}R$ {{ "%.2f"|format(ativo.valor_atual) }}{% else %}—{% endif %}
+          </td>
+          <td class="{% if ativo.peso_atual == 0 %}no-data{% endif %}" id="pesoat-{{ ativo.display }}">
+            {{ "%.2f"|format(ativo.peso_atual) }}%
+          </td>
+          <td class="{% if ativo.delta_peso > 0.5 %}pos{% elif ativo.delta_peso < -0.5 %}neg{% else %}zero{% endif %}" id="delta-{{ ativo.display }}">
+            {{ "%+.2f"|format(ativo.delta_peso) }}%
+          </td>
+          <td class="{% if ativo.necessidade > 0 %}neg{% elif ativo.necessidade < 0 %}pos{% else %}zero{% endif %}" id="nec-{{ ativo.display }}">
+            {% if ativo.necessidade != 0 %}R$ {{ "%.2f"|format(ativo.necessidade|abs) }}{% else %}—{% endif %}
+          </td>
+          <td style="text-align:center" id="orient-{{ ativo.display }}">
+            <span class="badge {{ ativo.css_class }}">{{ ativo.orientacao }}</span>
+          </td>
+          <td class="{% if ativo.sugestao_qtd == 0 %}no-data{% endif %}" id="sug-{{ ativo.display }}">
+            {% if ativo.sugestao_qtd > 0 %}
+              <span class="sugestao">+{{ ativo.sugestao_qtd }} un<br>≈ R$ {{ "%.2f"|format(ativo.sugestao_valor) }}</span>
+            {% else %}
+              —
+            {% endif %}
+          </td>
+          <td style="text-align:center">
+            <button class="btn btn-danger btn-sm" onclick="removerAtivo('{{ ativo.display }}')" aria-label="Remover {{ ativo.display }}">
+              <i class="ph ph-trash"></i>
+            </button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Cards MOBILE -->
+  <div class="mobile-cards" id="mobile-cards">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <span style="font-size:13px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:0.05em;">Ativos da Carteira</span>
+      <button type="button" class="add-ativo-btn" onclick="abrirModal(event)">+ Adicionar</button>
+    </div>
+    {% for ativo in resultado.ativos %}
+    <div class="ativo-card" data-ticker-card="{{ ativo.display }}">
+      <div class="ativo-card-header" onclick="this.parentElement.toggleAttribute('open')">
+        <span class="ativo-card-ticker">{{ ativo.display }}</span>
+        <span class="badge {{ ativo.css_class }}" style="font-size:10px;">{{ ativo.orientacao }}</span>
+        <span class="ativo-card-value" id="m-valor-{{ ativo.display }}">
+          {% if ativo.valor_atual > 0 %}R$ {{ "%.2f"|format(ativo.valor_atual) }}{% else %}—{% endif %}
+        </span>
+        <i class="ph ph-caret-down ativo-card-chevron"></i>
+      </div>
+      <div class="ativo-card-body">
+        <div class="ativo-card-row">
+          <span class="row-label">Preço</span>
+          <span class="row-value" id="m-preco-{{ ativo.display }}">
+            {% if ativo.preco_atual > 0 %}R$ {{ "%.2f"|format(ativo.preco_atual) }}{% else %}—{% endif %}
+          </span>
+        </div>
+        <div class="ativo-card-row">
+          <span class="row-label">Peso Alvo</span>
+          <span class="row-value">{{ "%.2f"|format(ativo.peso_recomendado | default(0)) }}%</span>
+        </div>
+        <div class="ativo-card-row">
+          <span class="row-label">Peso Atual</span>
+          <span class="row-value" id="m-pesoat-{{ ativo.display }}">{{ "%.2f"|format(ativo.peso_atual) }}%</span>
+        </div>
+        <div class="ativo-card-row">
+          <span class="row-label">Δ Peso</span>
+          <span class="row-value {% if ativo.delta_peso > 0.5 %}pos{% elif ativo.delta_peso < -0.5 %}neg{% else %}zero{% endif %}" id="m-delta-{{ ativo.display }}">
+            {{ "%+.2f"|format(ativo.delta_peso) }}%
+          </span>
+        </div>
+        <div class="ativo-card-row">
+          <span class="row-label">Necessidade</span>
+          <span class="row-value" id="m-nec-{{ ativo.display }}">
+            {% if ativo.necessidade != 0 %}R$ {{ "%.2f"|format(ativo.necessidade|abs) }}{% else %}—{% endif %}
+          </span>
+        </div>
+        <div class="ativo-card-row">
+          <span class="row-label">Sugestão</span>
+          <span class="row-value" id="m-sug-{{ ativo.display }}">
+            {% if ativo.sugestao_qtd > 0 %}+{{ ativo.sugestao_qtd }} un ≈ R$ {{ "%.2f"|format(ativo.sugestao_valor) }}{% else %}—{% endif %}
+          </span>
+        </div>
+        <div class="ativo-card-actions">
+          <div class="field">
+            <label for="qty-{{ ativo.display }}">Qtd.</label>
+            <input class="qty-input" type="number" min="0"
+                   id="qty-{{ ativo.display }}"
+                   data-ativo="{{ ativo.display }}"
+                   value="{{ ativo.quantidade }}"
+                   onchange="marcarAlterado()">
+          </div>
+          <div class="field">
+            <label for="peso-{{ ativo.display }}">Peso %</label>
+            <input class="peso-input" type="number" min="0" max="100" step="0.01"
+                   id="peso-{{ ativo.display }}"
+                   data-ativo="{{ ativo.display }}"
+                   value="{{ '%.2f'|format(ativo.peso_recomendado | default(0)) }}"
+                   onchange="onPesoChange()">
+          </div>
+          <div style="display:flex; align-items:flex-end;">
+            <button class="btn btn-danger btn-sm" onclick="removerAtivo('{{ ativo.display }}')" aria-label="Remover">
+              <i class="ph ph-trash"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+<!-- Modal: Adicionar Ativo -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="f-modal">
+    <h3><i class="ph ph-plus-circle" style="margin-right:6px;"></i> Adicionar Novo Ativo</h3>
+    <div class="modal-error" id="modal-error"></div>
+    <div class="field">
+      <label for="m-ticker">Ticker (ex: PETR4)</label>
+      <div class="autocomplete-wrapper">
+          <input type="text" id="m-ticker" placeholder="Digite PETR, VALE, ITUB..." autocomplete="off">
+          <div id="ticker-results" class="ticker-results"></div>
+      </div>
+    </div>
+    <div class="field">
+      <label for="m-peso">Peso Alvo (%)</label>
+      <input type="number" id="m-peso" placeholder="5.00" min="0.01" max="100" step="0.01">
+      <div class="hint">Atenção: a soma total dos pesos deve ser 100%.</div>
+    </div>
+    <div class="field">
+      <label for="m-qtd">Quantidade Atual</label>
+      <input type="number" id="m-qtd" placeholder="0" min="0" step="1" value="0">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="fecharModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarAdicionarAtivo()">Adicionar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Histórico de Backups -->
+<div class="modal-overlay" id="backup-overlay">
+  <div class="f-modal" style="max-width: 500px;">
+    <h3><i class="ph ph-clock-counter-clockwise" style="margin-right:6px;"></i> Histórico de Backups</h3>
+    <div id="backup-list" style="max-height: 350px; overflow-y: auto;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="fecharBackupModal()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Confirmar Limpeza da Carteira -->
+<div class="modal-overlay" id="limpar-overlay">
+  <div class="f-modal" style="max-width: 420px; text-align: center;">
+    <div class="modal-danger-icon">
+      <i class="ph ph-warning"></i>
+    </div>
+    <h3 style="text-align:center; margin-bottom:8px;">Limpar Carteira</h3>
+    <p class="modal-danger-text">
+      Tem certeza que deseja <strong style="color:var(--red);">excluir todos os ativos</strong> da carteira?<br>
+      Um backup será criado automaticamente antes da exclusão.
+    </p>
+    <div class="modal-footer" style="justify-content:center; gap:12px; margin-top:20px;">
+      <button class="btn btn-secondary" onclick="fecharModalLimpar()" style="padding:10px 24px;">Cancelar</button>
+      <button class="btn-confirm-danger" id="btn-confirmar-limpar" onclick="confirmarLimparCarteira()">Excluir Tudo</button>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+// Autocomplete
+const tickerInput = document.getElementById("m-ticker");
+const resultsBox = document.getElementById("ticker-results");
+let timeoutBusca;
+
+tickerInput.addEventListener("input", function() {
+    const termo = this.value.trim();
+    clearTimeout(timeoutBusca);
+    if (termo.length < 2) {
+        resultsBox.style.display = "none";
+        return;
+    }
+    timeoutBusca = setTimeout(() => buscarAtivos(termo), 300);
+});
+
+async function buscarAtivos(termo) {
+    try {
+        const res = await fetch(`/financeiro/api/ativos?q=${encodeURIComponent(termo)}`);
+        const ativos = await res.json();
+        renderResultados(ativos);
+    } catch(err) {
+        console.error(err);
+    }
+}
+
+function renderResultados(lista) {
+    if (!lista.length) {
+        resultsBox.style.display = "none";
+        return;
+    }
+    resultsBox.innerHTML = "";
+    lista.forEach(ativo => {
+        const item = document.createElement("div");
+        item.className = "ticker-item";
+        item.innerHTML = `
+            <div class="ticker-symbol">${ativo.ticker}</div>
+            <div class="ticker-name">${ativo.nome}</div>
+        `;
+        item.onclick = () => {
+            tickerInput.value = ativo.ticker;
+            resultsBox.style.display = "none";
+        };
+        resultsBox.appendChild(item);
+    });
+    resultsBox.style.display = "block";
+}
+
+document.addEventListener("click", function(e) {
+    if (!tickerInput.contains(e.target) && !resultsBox.contains(e.target)) {
+        resultsBox.style.display = "none";
+    }
+});
+
+// Estado global
+let cotacoes = {{ precos|tojson }};
+let calculado = true;
+let portfolio = {{ portfolio | tojson }};
+let ultimoResultado = null;
+
+// Formatação
+const fmt = (v, d=2) => v.toLocaleString('pt-BR', {minimumFractionDigits: d, maximumFractionDigits: d});
+const fmtBRL = v => 'R$ ' + fmt(v);
+
+// Status
+function setStatus(state, msg) {
+  document.getElementById('status-dot').className = 'status-dot ' + state;
+  document.getElementById('status-msg').textContent = msg;
+}
+
+// Soma de pesos
+function getSomaPesos() {
+  let soma = 0;
+  document.querySelectorAll('.peso-input').forEach(el => { soma += parseFloat(el.value)||0; });
+  // Inputs appear in both desktop table and mobile cards; avoid double-counting
+  // Since they share the same data-ativo, we deduplicate:
+  const seen = {};
+  let somaDedup = 0;
+  document.querySelectorAll('.table-wrap .peso-input, .mobile-cards .peso-input').forEach(el => {
+    const ativo = el.dataset.ativo;
+    if (!seen[ativo]) {
+      seen[ativo] = true;
+      somaDedup += parseFloat(el.value) || 0;
+    }
+  });
+  return Math.round(somaDedup * 100) / 100;
+}
+
+function atualizarSomaPesos() {
+  const soma = getSomaPesos();
+  const el = document.getElementById('val-soma-pesos');
+  const warn = document.getElementById('peso-warn');
+  el.textContent = fmt(soma) + '%';
+  const ok = Math.abs(soma - 100) < 0.01;
+  el.style.color = ok ? 'var(--green)' : 'var(--red)';
+  warn.style.display = ok ? 'none' : 'block';
+  document.querySelectorAll('.peso-input').forEach(el => {
+    el.classList.toggle('invalid', !ok);
+  });
+  return ok;
+}
+
+function onPesoChange() {
+  // Sync peso between desktop and mobile
+  const el = event.target;
+  const ativo = el.dataset.ativo;
+  const val = el.value;
+  document.querySelectorAll(`.peso-input[data-ativo="${ativo}"]`).forEach(input => {
+    if (input !== el) input.value = val;
+  });
+  atualizarSomaPesos();
+  marcarAlterado();
+}
+
+function marcarAlterado() {
+  // Sync qty between desktop and mobile
+  if (event && event.target && event.target.classList.contains('qty-input')) {
+    const ativo = event.target.dataset.ativo;
+    const val = event.target.value;
+    document.querySelectorAll(`.qty-input[data-ativo="${ativo}"]`).forEach(input => {
+      if (input !== event.target) input.value = val;
+    });
+  }
+  if (calculado) setStatus('', 'Carteira alterada — recalcule o rebalanceamento.');
+}
+
+function redistribuirPesos() {
+  // Only use desktop table inputs as source, then sync to mobile
+  const tableInputs = document.querySelectorAll('.table-wrap .peso-input');
+  const n = tableInputs.length;
+  if (n === 0) return;
+  const base = Math.floor(10000 / n) / 100;
+  let soma = 0;
+  tableInputs.forEach((el, i) => {
+    if (i < n - 1) { el.value = base.toFixed(2); soma += base; }
+    else { el.value = (100 - soma).toFixed(2); }
+  });
+  // Sync to mobile cards
+  tableInputs.forEach(el => {
+    const ativo = el.dataset.ativo;
+    document.querySelectorAll(`.mobile-cards .peso-input[data-ativo="${ativo}"]`).forEach(m => {
+      m.value = el.value;
+    });
+  });
+  atualizarSomaPesos();
+  setStatus('ok', `Pesos redistribuídos igualmente entre ${n} ativos.`);
+}
+
+function lerCarteiraUI() {
+  const map = {};
+  portfolio.forEach(a => { map[a.display] = {...a}; });
+  // Read from desktop table (canonical source)
+  document.querySelectorAll('#tbody tr[data-ticker]').forEach(tr => {
+    const ticker = tr.dataset.ticker;
+    if (!map[ticker]) return;
+    const qtdEl = tr.querySelector('.qty-input');
+    const pesoEl = tr.querySelector('.peso-input');
+    if (qtdEl) map[ticker].quantidade = parseInt(qtdEl.value) || 0;
+    if (pesoEl) map[ticker].peso = (parseFloat(pesoEl.value) || 0) / 100;
+  });
+  return Object.values(map);
+}
+
+async function salvarCarteira() {
+  if (!atualizarSomaPesos()) {
+    setStatus('error', 'Soma dos pesos ≠ 100%. Corrija antes de salvar.');
+    return;
+  }
+  const carteira = lerCarteiraUI();
+  try {
+    const res = await fetch('/financeiro/api/portfolio', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(carteira),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erro ao salvar');
+    portfolio = carteira;
+    setStatus('ok', `Carteira salva com ${carteira.length} ativos`);
+  } catch(e) {
+    setStatus('error', e.message);
+  }
+}
+
+// Backup modal (themed)
+async function abrirHistoricoBackups() {
+    const overlay = document.getElementById('backup-overlay');
+    const listEl = document.getElementById('backup-list');
+    listEl.innerHTML = '<div style="text-align:center; color:var(--muted); padding:20px;">Carregando...</div>';
+    overlay.classList.add('open');
+
+    try {
+        const res = await fetch("/financeiro/api/backups");
+        const backups = await res.json();
+
+        if (!backups.length) {
+            listEl.innerHTML = '<div style="text-align:center; color:var(--muted); padding:20px;">Nenhum backup encontrado.</div>';
+            return;
+        }
+
+        listEl.innerHTML = '';
+        backups.forEach(b => {
+            const item = document.createElement("div");
+            item.className = "backup-list-item";
+            item.innerHTML = `
+                <div class="backup-info">
+                    <strong>${b.data.replace("_", " ")}</strong>
+                    <small>${b.arquivo}</small>
+                </div>
+                <button class="btn btn-primary btn-sm">Restaurar</button>
+            `;
+            item.querySelector("button").onclick = async () => {
+                if (!confirm('Restaurar este backup?')) return;
+                await fetch("/financeiro/api/restaurar", {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({ arquivo: b.arquivo })
+                });
+                location.reload();
+            };
+            listEl.appendChild(item);
+        });
+    } catch(e) {
+        listEl.innerHTML = `<div style="color:var(--red); padding:10px;">Erro ao carregar backups.</div>`;
+    }
+}
+
+function fecharBackupModal() {
+    document.getElementById('backup-overlay').classList.remove('open');
+}
+
+async function atualizarCotacoes() {
+  const btn = document.getElementById('btn-cotacoes');
+  const originalHTML = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Buscando...';
+  setStatus('loading', 'Consultando cotações via backend...');
+  try {
+    const res = await fetch('/financeiro/api/cotacoes');
+    const data = await res.json();
+    if (!res.ok) throw new Error('Falha na requisição');
+    cotacoes = data;
+    let ok = 0, falha = 0;
+    portfolio.forEach(a => {
+      const sym = a.display;
+      const preco = cotacoes[sym];
+      // Desktop
+      const el = document.getElementById('preco-' + sym);
+      if (preco && el) { el.textContent = fmtBRL(preco); el.classList.remove('no-data'); ok++; }
+      else if (el) { el.textContent = 'N/D'; el.classList.add('no-data'); falha++; }
+      // Mobile
+      const mel = document.getElementById('m-preco-' + sym);
+      if (preco && mel) { mel.textContent = fmtBRL(preco); }
+      else if (mel) { mel.textContent = 'N/D'; }
+    });
+    setStatus('ok', `Cotações atualizadas: ${ok} OK, ${falha} falhas`);
+  } catch(e) { setStatus('error', 'Erro ao buscar cotações: ' + e.message); }
+  btn.disabled = false;
+  btn.innerHTML = originalHTML;
+}
+
+async function calcular() {
+  if (!atualizarSomaPesos()) {
+    setStatus('error', 'Soma dos pesos ≠ 100%. Corrija os pesos antes de calcular.');
+    return;
+  }
+  const btn = document.getElementById('btn-calcular');
+  btn.disabled = true;
+  setStatus('loading', 'Calculando...');
+
+  const aporte = parseFloat(document.getElementById('aporte').value) || 0;
+  const tolerancia = parseFloat(document.getElementById('tolerancia').value) || 2;
+  const carteiraUI = lerCarteiraUI();
+  const quantidades = {};
+  carteiraUI.forEach(a => { quantidades[a.display] = a.quantidade; });
+
+  try {
+    const res = await fetch('/financeiro/api/rebalancear', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        precos: cotacoes,
+        aporte,
+        quantidades,
+        portfolio: carteiraUI,
+        tolerancia
+      }),
+    });
+    const data = await res.json();
+    ultimoResultado = data;
+    renderResultado(data);
+    calculado = true;
+    setStatus('ok', `Rebalanceamento calculado — Carteira: ${fmtBRL(data.valor_carteira)} · Aporte: ${fmtBRL(data.aporte)} · Total: ${fmtBRL(data.valor_total)}`);
+    
+    // Show download button
+    document.getElementById('download-wrap').classList.add('visible');
+    
+  } catch(e) {
+    setStatus('error', 'Erro no cálculo: ' + e.message);
+  }
+  btn.disabled = false;
+}
+
+function renderResultado(data) {
+  document.getElementById('val-carteira').textContent = fmtBRL(data.valor_carteira);
+  document.getElementById('val-aporte').textContent = fmtBRL(data.aporte);
+  document.getElementById('val-saldo').textContent = fmtBRL(data.saldo_nao_investido || 0);
+
+  const tbody = document.getElementById('tbody');
+  const rows = {};
+  tbody.querySelectorAll('tr[data-ticker]').forEach(r => { rows[r.dataset.ticker] = r; });
+  tbody.innerHTML = '';
+
+  data.ativos.forEach(a => {
+    const tr = rows[a.display];
+    if (!tr) return;
+
+    // Desktop table
+    tr.cells[4].textContent = fmtBRL(a.valor_atual);
+    tr.cells[4].className = '';
+    tr.cells[5].textContent = fmt(a.peso_atual) + '%';
+    tr.cells[5].className = '';
+
+    const dp = a.delta_peso;
+    tr.cells[6].textContent = (dp >= 0 ? '+' : '') + fmt(dp) + '%';
+    tr.cells[6].className = dp > 0.5 ? 'pos' : dp < -0.5 ? 'neg' : 'zero';
+
+    const nec = a.necessidade;
+    tr.cells[7].textContent = (nec >= 0 ? '+' : '') + fmtBRL(Math.abs(nec));
+    tr.cells[7].className = nec > 0 ? 'neg' : nec < 0 ? 'pos' : 'zero';
+
+    tr.cells[8].innerHTML = `<span class="badge ${a.css_class}">${a.orientacao}</span>`;
+
+    if (a.sugestao_qtd > 0) {
+      tr.cells[9].innerHTML = `<span class="sugestao">+${a.sugestao_qtd} un<br>≈ ${fmtBRL(a.sugestao_valor)}</span>`;
+      tr.cells[9].className = '';
+    } else {
+      tr.cells[9].textContent = '—';
+      tr.cells[9].className = 'no-data';
+    }
+
+    tbody.appendChild(tr);
+
+    // Mobile cards
+    const mValor = document.getElementById('m-valor-' + a.display);
+    if (mValor) mValor.textContent = a.valor_atual > 0 ? fmtBRL(a.valor_atual) : '—';
+
+    const mPreco = document.getElementById('m-preco-' + a.display);
+    if (mPreco) mPreco.textContent = a.preco_atual > 0 ? fmtBRL(a.preco_atual) : '—';
+
+    const mPeso = document.getElementById('m-pesoat-' + a.display);
+    if (mPeso) mPeso.textContent = fmt(a.peso_atual) + '%';
+
+    const mDelta = document.getElementById('m-delta-' + a.display);
+    if (mDelta) {
+      mDelta.textContent = (dp >= 0 ? '+' : '') + fmt(dp) + '%';
+      mDelta.className = 'row-value ' + (dp > 0.5 ? 'pos' : dp < -0.5 ? 'neg' : 'zero');
+    }
+
+    const mNec = document.getElementById('m-nec-' + a.display);
+    if (mNec) mNec.textContent = nec !== 0 ? fmtBRL(Math.abs(nec)) : '—';
+
+    const mSug = document.getElementById('m-sug-' + a.display);
+    if (mSug) mSug.textContent = a.sugestao_qtd > 0 ? `+${a.sugestao_qtd} un ≈ ${fmtBRL(a.sugestao_valor)}` : '—';
+
+    // Update badge in mobile card header
+    const mCard = document.querySelector(`[data-ticker-card="${a.display}"]`);
+    if (mCard) {
+      const badge = mCard.querySelector('.badge');
+      if (badge) { badge.className = `badge ${a.css_class}`; badge.textContent = a.orientacao; }
+    }
+  });
+}
+
+async function restaurarCarteira() {
+    if (!confirm("Deseja restaurar a última aplicação?")) return;
+    try {
+        const res = await fetch("/financeiro/api/restaurar", { method: "POST" });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        alert(data.message);
+        location.reload();
+    } catch(err) {
+        alert(err.message);
+    }
+}
+
+async function aplicarAlteracoes() {
+    if (!ultimoResultado) {
+        alert("Execute o rebalanceamento primeiro.");
+        return;
+    }
+    const existeCompra = ultimoResultado.ativos.some(a => a.sugestao_qtd > 0);
+    if (!existeCompra) {
+        alert("Não existem compras para aplicar.");
+        return;
+    }
+    if (!confirm("Deseja realmente aplicar as alterações na carteira?")) return;
+    try {
+        const res = await fetch("/financeiro/api/aplicar", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                ativos: ultimoResultado.ativos,
+                aporte: ultimoResultado.aporte,
+                saldo_nao_investido: ultimoResultado.saldo_nao_investido
+            })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        alert(data.message);
+        location.reload();
+    } catch(err) {
+        alert(err.message);
+    }
+}
+
+// Modal
+function abrirModal(e) {
+  if(e) e.preventDefault();
+  try {
+    document.getElementById('m-ticker').value = '';
+    document.getElementById('m-peso').value = '';
+    document.getElementById('m-qtd').value = '0';
+    document.getElementById('modal-error').style.display = 'none';
+  } catch(err) {
+    console.error("Erro ao limpar inputs do modal:", err);
+  }
+  
+  const overlay = document.getElementById('modal-overlay');
+  if (overlay) {
+    overlay.classList.add('open');
+  } else {
+    console.error("modal-overlay não encontrado no DOM");
+  }
+  
+  try {
+    document.getElementById('m-ticker').focus();
+  } catch(err) {}
+}
+function fecharModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+
+async function confirmarAdicionarAtivo() {
+  const ticker = document.getElementById('m-ticker').value.trim().toUpperCase();
+  const peso = parseFloat(document.getElementById('m-peso').value) || 0;
+  const qtd = parseInt(document.getElementById('m-qtd').value) || 0;
+  const errEl = document.getElementById('modal-error');
+  if (!ticker) { errEl.textContent = 'Informe o ticker.'; errEl.style.display = 'block'; return; }
+  if (peso <= 0) { errEl.textContent = 'Informe um peso maior que zero.'; errEl.style.display = 'block'; return; }
+  errEl.style.display = 'none';
+  try {
+    const res = await fetch('/financeiro/api/portfolio/ativo', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ ticker, display: ticker, peso: peso / 100, quantidade: qtd }),
+    });
+    const data = await res.json();
+    if (!res.ok) { errEl.textContent = data.error; errEl.style.display = 'block'; return; }
+    fecharModal();
+    setStatus('ok', `Ativo ${ticker} adicionado. Recarregando...`);
+    setTimeout(() => location.reload(), 800);
+  } catch(e) { errEl.textContent = 'Erro: ' + e.message; errEl.style.display = 'block'; }
+}
+
+async function removerAtivo(display) {
+  if (!confirm(`Remover ${display} da carteira?`)) return;
+  try {
+    const res = await fetch('/financeiro/api/portfolio/ativo/' + display, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) { setStatus('error', data.error); return; }
+    setStatus('ok', `${display} removido. Recarregando...`);
+    setTimeout(() => location.reload(), 600);
+  } catch(e) { setStatus('error', 'Erro ao remover: ' + e.message); }
+}
+
+// Init
+document.getElementById('aporte').addEventListener('change', () => { if (calculado) calcular(); });
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-overlay')) fecharModal();
+});
+document.getElementById('backup-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('backup-overlay')) fecharBackupModal();
+});
+document.getElementById('limpar-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('limpar-overlay')) fecharModalLimpar();
+});
+atualizarSomaPesos();
+
+// ---- Limpar Carteira ----
+function abrirModalLimparCarteira() {
+  document.getElementById('limpar-overlay').classList.add('open');
+}
+function fecharModalLimpar() {
+  document.getElementById('limpar-overlay').classList.remove('open');
+}
+async function confirmarLimparCarteira() {
+  const btn = document.getElementById('btn-confirmar-limpar');
+  const originalText = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = 'Limpando...';
+  try {
+    const res = await fetch('/financeiro/api/limpar-carteira', { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    alert(data.message);
+    location.reload();
+  } catch(e) {
+    alert('Erro ao limpar: ' + e.message);
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+  }
+}
+
+// ---- Baixar Recomendações ----
+function baixarRecomendacoes() {
+  if (!ultimoResultado || !ultimoResultado.ativos) {
+    alert('Calcule o rebalanceamento primeiro.');
+    return;
+  }
+  
+  // Filtrar apenas quem tem sugestão de compra (> 0)
+  const compras = ultimoResultado.ativos.filter(a => a.sugestao_qtd > 0);
+  
+  if (compras.length === 0) {
+    alert('Não há recomendações de compra nesta simulação.');
+    return;
+  }
+  
+  // CSV header
+  let csv = "TICKER;ACAO;QTD SUGERIDA;VALOR ESTIMADO (R$);PRECO ATUAL (R$)\n";
+  
+  compras.forEach(a => {
+    const ticker = a.display;
+    const acao = a.orientacao;
+    const qtd = a.sugestao_qtd;
+    // formata pt-BR com vírgula para abrir direito no Excel BR
+    const valor = a.sugestao_valor.toFixed(2).replace('.', ',');
+    const preco = a.preco_atual.toFixed(2).replace('.', ',');
+    csv += `${ticker};${acao};${qtd};${valor};${preco}\n`;
+  });
+  
+  // Download logic
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const dataStr = new Date().toISOString().split('T')[0];
+  a.download = `Recomendacoes_Compra_${dataStr}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+</script>
+{% endblock %}

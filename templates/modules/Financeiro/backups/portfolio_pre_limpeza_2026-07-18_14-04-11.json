@@ -1,0 +1,14 @@
+[
+  {
+    "ticker": "RSG=F",
+    "display": "RSG=F",
+    "peso": 0.05,
+    "quantidade": 0
+  },
+  {
+    "ticker": "PETR4",
+    "display": "PETR4",
+    "peso": 0.5,
+    "quantidade": 24
+  }
+]

@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='produtividade/tarefa/css/tarefa.css') }}">
+<script defer src="{{ url_for('static', filename='produtividade/tarefa/js/tarefa.js') }}"></script>
+<div class="header">
+    <h1>Gerenciamento de Tarefas</h1>
+    <p>Organize seus projetos e acompanhe o progresso das subtarefas.</p>
+</div>
+
+<form action="{{ url_for('add_tarefa') }}" method="POST" class="add-form" id="addTaskForm">
+    <input type="text" name="titulo" placeholder="Nova tarefa principal..." required>
+    <button type="submit">Criar Tarefa</button>
+</form>
+
+<div id="tasks-list" style="display: flex; flex-direction: column; gap: 0.75rem;">
+    {% for tarefa in tarefas %}
+    <div class="card task-card" draggable="true" data-id="{{ tarefa.id }}">
+        
+        <!-- Cabeçalho da Tarefa -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; gap: 1rem;">
+            <!-- Área clicável para o Dropdown -->
+            <div onclick="toggleSubtasks({{ tarefa.id }})" style="flex: 1; display: flex; align-items: center; cursor: pointer; user-select: none; gap: 0.5rem;">
+                <h3 style="margin: 0; font-size: 1rem;">{{ tarefa.titulo }}</h3>
+                <i class="ph ph-caret-down" id="arrow-{{ tarefa.id }}" style="font-size: 1.2rem; color: var(--text-secondary); transition: transform 0.3s ease; flex-shrink: 0;"></i>
+            </div>
+            
+            <!-- Seletor de Status (dropdown nativo para maior estabilidade) -->
+            <div class="status-wrapper">
+                <select id="status-select-{{ tarefa.id }}" class="status-select status-{{ tarefa.status }}" onchange="changeStatus({{ tarefa.id }}, this.value)">
+                    <option value="em-andamento" {% if tarefa.status == 'em-andamento' %}selected{% endif %}>Em andamento</option>
+                    <option value="refinamento" {% if tarefa.status == 'refinamento' %}selected{% endif %}>Refinamento</option>
+                    <option value="concluida" {% if tarefa.status == 'concluida' %}selected{% endif %}>Concluída</option>
+                    <option value="pendente-base" {% if tarefa.status == 'pendente-base' %}selected{% endif %}>Pendente Base</option>
+                </select>
+            </div>
+            
+            <!-- Botão de Excluir Tarefa -->
+            <form action="{{ url_for('delete_tarefa', tarefa_id=tarefa.id) }}" method="POST" style="margin: 0;" onsubmit="return confirm('Tem certeza que deseja excluir esta tarefa e TODAS as suas subtarefas?');">
+                <button type="submit" class="delete-btn" title="Excluir Tarefa"><i class="ph ph-trash"></i></button>
+            </form>
+        </div>
+        
+        <!-- Barra de Progresso (sempre visível) -->
+        <div>
+            <div class="progress-bar-container">
+                <div class="progress-bar" style="width: {{ tarefa.progresso }}%;"></div>
+            </div>
+            <p class="progress-text">{{ tarefa.progresso }}% Concluído</p>
+        </div>
+        
+        <!-- Container das subtarefas -->
+        <div id="subtasks-{{ tarefa.id }}" style="margin-top: 0.75rem; display: none;">
+            
+            <ul class="subtask-list">
+                {% for sub in tarefa.subtarefas %}
+                <li class="subtask-item">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; flex: 1;">
+                        <button type="button" class="toggle-btn subtask-toggle-btn {% if sub.concluida %}active{% endif %}"
+                                data-subtarefa="{{ sub.id }}"
+                                style="background: none; border: none;">
+                            {% if sub.concluida %}<i class="ph-fill ph-check-circle"></i>{% else %}<i class="ph ph-circle"></i>{% endif %}
+                        </button>
+                        <span class="{% if sub.concluida %}strikethrough{% endif %}">{{ sub.descricao }}</span>
+                    </div>
+                    
+                    <!-- Botão de Excluir Subtarefa -->
+                    <form action="{{ url_for('delete_subtarefa', subtarefa_id=sub.id) }}" method="POST" style="margin: 0;" onsubmit="return confirm('Excluir subtarefa?');">
+                        <button type="submit" class="delete-btn" title="Excluir Subtarefa"><i class="ph ph-trash"></i></button>
+                    </form>
+                </li>
+                {% endfor %}
+            </ul>
+            
+            <form action="{{ url_for('add_subtarefa', tarefa_id=tarefa.id) }}" method="POST" class="add-subtask-form">
+                <input type="text" name="descricao" placeholder="Adicionar subtarefa..." required style="flex: 1;">
+                <button type="submit"><i class="ph ph-plus"></i></button>
+            </form>
+        </div>
+        
+    </div>
+    {% else %}
+    <p style="color: var(--text-secondary);">Nenhuma tarefa cadastrada. Crie uma acima!</p>
+    {% endfor %}
+</div>
+
+<script>
+    function toggleSubtasks(tarefaId) {
+        const container = document.getElementById('subtasks-' + tarefaId);
+        const arrow = document.getElementById('arrow-' + tarefaId);
+        
+        if (container.style.display === 'none') {
+            container.style.display = 'block';
+            arrow.style.transform = 'rotate(0deg)';
+        } else {
+            container.style.display = 'none';
+            arrow.style.transform = 'rotate(-90deg)';
+        }
+    }
+    
+    // Fechar todos os dropdowns ao carregar a página
+    document.addEventListener('DOMContentLoaded', () => {
+        const allSubtaskContainers = document.querySelectorAll('[id^="subtasks-"]');
+        allSubtaskContainers.forEach(container => {
+            const tarefaId = container.id.replace('subtasks-', '');
+            const arrow = document.getElementById('arrow-' + tarefaId);
+            container.style.display = 'none';
+            arrow.style.transform = 'rotate(-90deg)';
+        });
+    });
+    
+    // Fechar todos os dropdowns ao enviar o formulário de nova tarefa
+    const addTaskForm = document.getElementById('addTaskForm');
+    if (addTaskForm) {
+        addTaskForm.addEventListener('submit', () => {
+            setTimeout(() => {
+                const allSubtaskContainers = document.querySelectorAll('[id^="subtasks-"]');
+                allSubtaskContainers.forEach(container => {
+                    const tarefaId = container.id.replace('subtasks-', '');
+                    const arrow = document.getElementById('arrow-' + tarefaId);
+                    container.style.display = 'none';
+                    arrow.style.transform = 'rotate(-90deg)';
+                });
+            }, 100);
+        });
+    }
+</script>
+{% endblock %}
