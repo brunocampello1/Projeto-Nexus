@@ -10,6 +10,10 @@ Financeiro
 {% endblock %}
 
 {% block topbar_actions %}
+<button class="btn btn-secondary btn-topbar-action" onclick="toggleValores()">
+    <i class="ph ph-eye" id="icon-toggle-valores"></i>
+    <span class="btn-label-text" id="lbl-toggle-valores">Ocultar</span>
+</button>
 <button class="btn btn-secondary btn-topbar-action" onclick="abrirHistoricoBackups()">
     <i class="ph ph-clock-counter-clockwise"></i>
     <span class="btn-label-text">Backups</span>
@@ -728,6 +732,27 @@ Financeiro
     box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
   }
 
+  /* ---- Ocultar Valores ---- */
+  body.hide-values .value,
+  body.hide-values .detail-row strong,
+  body.hide-values td[id^="preco-"],
+  body.hide-values td[id^="valor-"],
+  body.hide-values td[id^="nec-"],
+  body.hide-values td[id^="sug-"],
+  body.hide-values td[id^="delta-"],
+  body.hide-values .ativo-card-value,
+  body.hide-values .row-value,
+  body.hide-values .sugestao {
+    filter: blur(6px);
+    opacity: 0.5;
+    pointer-events: none;
+    user-select: none;
+  }
+  body.hide-values #aporte {
+    color: transparent;
+    text-shadow: 0 0 8px rgba(0,0,0,0.5);
+  }
+
   /* ============================================
      MEDIA QUERIES — RESPONSIVIDADE
      ============================================ */
@@ -1098,6 +1123,23 @@ Financeiro
     <div class="modal-footer" style="justify-content:center; gap:12px; margin-top:20px;">
       <button class="btn btn-secondary" onclick="fecharModalLimpar()" style="padding:10px 24px;">Cancelar</button>
       <button class="btn-confirm-danger" id="btn-confirmar-limpar" onclick="confirmarLimparCarteira()">Excluir Tudo</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Confirmar Exibir Valores -->
+<div class="modal-overlay" id="exibir-valores-overlay">
+  <div class="f-modal" style="max-width: 420px; text-align: center;">
+    <div class="modal-danger-icon" style="background: var(--yellow-dim); color: var(--yellow);">
+      <i class="ph ph-eye"></i>
+    </div>
+    <h3 style="text-align:center; margin-bottom:8px;">Exibir Valores</h3>
+    <p class="modal-danger-text">
+      Tem certeza que deseja exibir os valores financeiros na tela?
+    </p>
+    <div class="modal-footer" style="justify-content:center; gap:12px; margin-top:20px;">
+      <button class="btn btn-secondary" onclick="fecharModalExibirValores()" style="padding:10px 24px;">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarExibirValores()" style="padding:10px 24px;">Sim, exibir</button>
     </div>
   </div>
 </div>
@@ -1656,6 +1698,51 @@ function baixarRecomendacoes() {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+// ---- Ocultar / Exibir Valores ----
+let valoresOcultos = false;
+
+function toggleValores() {
+    if (valoresOcultos) {
+        document.getElementById('exibir-valores-overlay').classList.add('open');
+    } else {
+        ocultarValores();
+    }
+}
+
+function fecharModalExibirValores() {
+    document.getElementById('exibir-valores-overlay').classList.remove('open');
+}
+
+function confirmarExibirValores() {
+    fecharModalExibirValores();
+    mostrarValores();
+}
+
+function ocultarValores() {
+    valoresOcultos = true;
+    document.body.classList.add('hide-values');
+    document.getElementById('icon-toggle-valores').className = 'ph ph-eye-slash';
+    const lbl = document.getElementById('lbl-toggle-valores');
+    if (lbl) lbl.textContent = 'Exibir';
+    localStorage.setItem('financeiro_valores_ocultos', 'true');
+}
+
+function mostrarValores() {
+    valoresOcultos = false;
+    document.body.classList.remove('hide-values');
+    document.getElementById('icon-toggle-valores').className = 'ph ph-eye';
+    const lbl = document.getElementById('lbl-toggle-valores');
+    if (lbl) lbl.textContent = 'Ocultar';
+    localStorage.setItem('financeiro_valores_ocultos', 'false');
+}
+
+// Inicializa o estado ao carregar (Padrão: Oculto)
+if (localStorage.getItem('financeiro_valores_ocultos') === 'false') {
+    mostrarValores();
+} else {
+    ocultarValores();
 }
 
 </script>
