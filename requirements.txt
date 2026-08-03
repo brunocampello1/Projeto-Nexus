@@ -3,3 +3,4 @@ gunicorn==21.2.0
 yfinance
 SQLAlchemy
 Flask-SQLAlchemy
+psycopg2-binary

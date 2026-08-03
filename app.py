@@ -3,12 +3,19 @@ from models import db, Habito, RegistroHabito, Tarefa, Subtarefa
 from datetime import date, timedelta, datetime
 from sqlalchemy import text
 from sqlalchemy.orm import joinedload
+import os
 
 # Importando blueprint do módulo Financeiro
 from templates.modules.Financeiro.routes import financeiro_bp
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
+
+# Configura o banco de dados via variável de ambiente (Render) ou usa o SQLite local como fallback
+database_url = os.environ.get('DATABASE_URL', 'sqlite:///app.db')
+if database_url.startswith("postgres://"):
+    database_url = database_url.replace("postgres://", "postgresql://", 1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 
