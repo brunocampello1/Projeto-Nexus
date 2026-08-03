@@ -31,10 +31,24 @@ def fetch_prices(portfolio):
     if not portfolio:
         return prices
         
+    usd_brl_rate = 1.0
+    has_usd = any("-USD" in item["ticker"].upper() for item in portfolio)
+    if has_usd:
+        try:
+            hist = yf.Ticker("BRL=X").history(period="5d")
+            if not hist.empty:
+                usd_brl_rate = float(hist["Close"].iloc[-1])
+        except Exception as e:
+            print(f"Erro ao buscar cotacao do dolar: {e}")
+            
     with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
         futures = [executor.submit(_fetch_single_price, item) for item in portfolio]
         for future in concurrent.futures.as_completed(futures):
             display, price = future.result()
+            
+            if price is not None and "-USD" in display.upper():
+                price = round(price * usd_brl_rate, 2)
+                
             prices[display] = price
             
     return prices
@@ -102,6 +116,8 @@ def calcular_rebalanceamento(
             "sugestao_qtd": 0,
 
             "sugestao_valor": 0,
+            
+            "ignorar": item.get("ignorar", False),
         })
 
     valor_carteira = sum(
@@ -109,13 +125,24 @@ def calcular_rebalanceamento(
         for a in ativos
     )
 
+    valor_carteira_ativa = sum(
+        a["valor_atual"]
+        for a in ativos if not a["ignorar"]
+    )
+
+    valor_total_ativo = (
+        valor_carteira_ativa +
+        aporte
+    )
+    if valor_total_ativo == 0:
+        valor_total_ativo = 1
+
     valor_total = (
         valor_carteira +
         aporte
     )
 
     if valor_total == 0:
-
         valor_total = 1
 
     # --------------------------------
@@ -129,54 +156,35 @@ def calcular_rebalanceamento(
             / valor_total
         ) * 100
 
-        peso_alvo = (
-            a["peso_alvo"]
-            * 100
-        )
-
-        delta = (
-            peso_atual -
-            peso_alvo
-        )
-
         a["peso_atual"] = round(
             peso_atual,
             2
         )
 
-        a["delta_peso"] = round(
-            delta,
-            2
-        )
-
-        a["necessidade"] = (
-            a["peso_alvo"]
-            * valor_total
-        ) - a["valor_atual"]
-
-        if abs(delta) <= tolerancia:
-
-            a["orientacao"] = (
-                "Peso aceitável"
-            )
-
-            a["css_class"] = "ok"
-
-        elif delta < -tolerancia:
-
-            a["orientacao"] = (
-                "Comprar"
-            )
-
-            a["css_class"] = "buy"
-
+        if a["ignorar"]:
+            a["peso_alvo"] = peso_atual / 100
+            a["peso_recomendado"] = round(peso_atual, 2)
+            a["delta_peso"] = 0
+            a["necessidade"] = 0
+            a["orientacao"] = "Ignorado"
+            a["css_class"] = "zero"
         else:
+            peso_alvo_ativo = a["peso_alvo"] * 100
+            peso_atual_ativo = (a["valor_atual"] / valor_total_ativo) * 100
+            delta_ativo = peso_atual_ativo - peso_alvo_ativo
 
-            a["orientacao"] = (
-                "Manter"
-            )
+            a["delta_peso"] = round(delta_ativo, 2)
+            a["necessidade"] = (a["peso_alvo"] * valor_total_ativo) - a["valor_atual"]
 
-            a["css_class"] = "sell"
+            if abs(delta_ativo) <= tolerancia:
+                a["orientacao"] = "Peso aceitável"
+                a["css_class"] = "ok"
+            elif delta_ativo < -tolerancia:
+                a["orientacao"] = "Comprar"
+                a["css_class"] = "buy"
+            else:
+                a["orientacao"] = "Manter"
+                a["css_class"] = "sell"
 
     # --------------------------------
     # 3. Distribuição
@@ -243,6 +251,13 @@ def calcular_rebalanceamento(
         valor_investido
     )
 
+    valor_total_ativo_final = (
+        valor_carteira_ativa +
+        valor_investido
+    )
+    if valor_total_ativo_final == 0:
+        valor_total_ativo_final = 1
+
     for a in ativos:
 
         qtd_final = (
@@ -265,12 +280,14 @@ def calcular_rebalanceamento(
             2
         )
 
-        a["delta_peso"] = round(
-            a["peso_atual"]
-            -
-            a["peso_alvo"] * 100,
-            2
-        )
+        if a["ignorar"]:
+            a["delta_peso"] = 0
+        else:
+            peso_atual_ativo_final = (valor_final / valor_total_ativo_final) * 100
+            a["delta_peso"] = round(
+                peso_atual_ativo_final - (a["peso_alvo"] * 100),
+                2
+            )
 
     # --------------------------------
     # 5. Retorno

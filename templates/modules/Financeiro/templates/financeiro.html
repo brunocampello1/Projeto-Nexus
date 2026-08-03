@@ -508,6 +508,35 @@ Financeiro
     box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.15);
   }
 
+  /* ---- Ativos Ignorados ---- */
+  tr.ignorado td {
+    opacity: 0.5;
+    background: rgba(255, 255, 255, 0.02);
+  }
+  tr.ignorado td:first-child, tr.ignorado td:last-child {
+    opacity: 1; /* Keep the button visible */
+  }
+  .ativo-card.ignorado {
+    opacity: 0.6;
+    border-color: var(--border);
+  }
+  .btn-ignorar {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    margin-left: 6px;
+    font-size: 14px;
+    transition: color 0.2s;
+    vertical-align: middle;
+  }
+  .btn-ignorar:hover {
+    color: var(--text);
+  }
+  .btn-ignorar.ativo {
+    color: var(--yellow);
+  }
+  
   /* ---- Modal ---- */
   .modal-overlay {
     display: none;
@@ -939,10 +968,15 @@ Financeiro
       </thead>
       <tbody id="tbody">
         {% for ativo in resultado.ativos %}
-        <tr data-ticker="{{ ativo.display }}">
-          <td>{{ ativo.display }}</td>
+        <tr data-ticker="{{ ativo.display }}" class="{% if ativo.ignorar %}ignorado{% endif %}">
+          <td>
+            {{ ativo.display }}
+            <button class="btn-ignorar {% if ativo.ignorar %}ativo{% endif %}" onclick="toggleIgnorar('{{ ativo.display }}')" title="Ignorar no rebalanceamento">
+              <i class="ph ph-lock-key{% if not ativo.ignorar %}-open{% endif %}"></i>
+            </button>
+          </td>
           <td style="text-align:center">
-            <input class="qty-input" type="number" min="0"
+            <input class="qty-input" type="number" min="0" step="any"
                    data-ativo="{{ ativo.display }}"
                    value="{{ ativo.quantidade }}"
                    onchange="marcarAlterado()">
@@ -951,7 +985,8 @@ Financeiro
             <input class="peso-input" type="number" min="0" max="100" step="0.01"
                    data-ativo="{{ ativo.display }}"
                    value="{{ '%.2f'|format(ativo.peso_recomendado | default(0)) }}"
-                   onchange="onPesoChange()">
+                   onchange="onPesoChange()"
+                   {% if ativo.ignorar %}disabled{% endif %}>
           </td>
           <td id="preco-{{ ativo.display }}">
             {% if ativo.preco_atual > 0 %}
@@ -1000,9 +1035,14 @@ Financeiro
       <button type="button" class="add-ativo-btn" onclick="abrirModal(event)">+ Adicionar</button>
     </div>
     {% for ativo in resultado.ativos %}
-    <div class="ativo-card" data-ticker-card="{{ ativo.display }}">
+    <div class="ativo-card {% if ativo.ignorar %}ignorado{% endif %}" data-ticker-card="{{ ativo.display }}">
       <div class="ativo-card-header" onclick="this.parentElement.toggleAttribute('open')">
-        <span class="ativo-card-ticker">{{ ativo.display }}</span>
+        <span class="ativo-card-ticker">
+            {{ ativo.display }}
+            <button class="btn-ignorar {% if ativo.ignorar %}ativo{% endif %}" onclick="toggleIgnorar('{{ ativo.display }}'); event.stopPropagation();" title="Ignorar no rebalanceamento">
+              <i class="ph ph-lock-key{% if not ativo.ignorar %}-open{% endif %}"></i>
+            </button>
+        </span>
         <span class="badge {{ ativo.css_class }}" style="font-size:10px;">{{ ativo.orientacao }}</span>
         <span class="ativo-card-value" id="m-valor-{{ ativo.display }}">
           {% if ativo.valor_atual > 0 %}R$ {{ "%.2f"|format(ativo.valor_atual) }}{% else %}—{% endif %}
@@ -1045,7 +1085,7 @@ Financeiro
         <div class="ativo-card-actions">
           <div class="field">
             <label for="qty-{{ ativo.display }}">Qtd.</label>
-            <input class="qty-input" type="number" min="0"
+            <input class="qty-input" type="number" min="0" step="any"
                    id="qty-{{ ativo.display }}"
                    data-ativo="{{ ativo.display }}"
                    value="{{ ativo.quantidade }}"
@@ -1089,7 +1129,7 @@ Financeiro
     </div>
     <div class="field">
       <label for="m-qtd">Quantidade Atual</label>
-      <input type="number" id="m-qtd" placeholder="0" min="0" step="1" value="0">
+      <input type="number" id="m-qtd" placeholder="0" min="0" step="any" value="0">
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="fecharModal()">Cancelar</button>
@@ -1218,15 +1258,11 @@ function setStatus(state, msg) {
 
 // Soma de pesos
 function getSomaPesos() {
-  let soma = 0;
-  document.querySelectorAll('.peso-input').forEach(el => { soma += parseFloat(el.value)||0; });
-  // Inputs appear in both desktop table and mobile cards; avoid double-counting
-  // Since they share the same data-ativo, we deduplicate:
   const seen = {};
   let somaDedup = 0;
   document.querySelectorAll('.table-wrap .peso-input, .mobile-cards .peso-input').forEach(el => {
     const ativo = el.dataset.ativo;
-    if (!seen[ativo]) {
+    if (!seen[ativo] && !el.disabled) {
       seen[ativo] = true;
       somaDedup += parseFloat(el.value) || 0;
     }
@@ -1260,6 +1296,45 @@ function onPesoChange() {
   marcarAlterado();
 }
 
+function recalcularPatrimonioFront() {
+  const carteiraUI = lerCarteiraUI();
+  let patrimonioTotal = 0;
+  
+  carteiraUI.forEach(a => {
+    const preco = cotacoes[a.display] || 0;
+    const valorAtual = a.quantidade * preco;
+    patrimonioTotal += valorAtual;
+    
+    const tdValor = document.getElementById('valor-' + a.display);
+    if (tdValor) {
+        tdValor.textContent = valorAtual > 0 ? fmtBRL(valorAtual) : '—';
+        tdValor.className = valorAtual === 0 ? 'no-data' : '';
+    }
+    const mValor = document.getElementById('m-valor-' + a.display);
+    if (mValor) mValor.textContent = valorAtual > 0 ? fmtBRL(valorAtual) : '—';
+  });
+  
+  document.getElementById('val-carteira').textContent = fmtBRL(patrimonioTotal);
+  
+  carteiraUI.forEach(a => {
+    const preco = cotacoes[a.display] || 0;
+    const valorAtual = a.quantidade * preco;
+    const pesoAtual = patrimonioTotal > 0 ? (valorAtual / patrimonioTotal) * 100 : 0;
+    
+    const tdPesoAt = document.getElementById('pesoat-' + a.display);
+    if (tdPesoAt) {
+        tdPesoAt.textContent = fmt(pesoAtual) + '%';
+        tdPesoAt.className = pesoAtual === 0 ? 'no-data' : '';
+    }
+    const mPesoAt = document.getElementById('m-pesoat-' + a.display);
+    if (mPesoAt) mPesoAt.textContent = fmt(pesoAtual) + '%';
+  });
+
+  calculado = false;
+  document.getElementById('download-wrap').classList.remove('visible');
+  setStatus('ok', 'Valores locais atualizados. Clique em "Rebalancear" para novas recomendações.');
+}
+
 function marcarAlterado() {
   // Sync qty between desktop and mobile
   if (event && event.target && event.target.classList.contains('qty-input')) {
@@ -1269,7 +1344,8 @@ function marcarAlterado() {
       if (input !== event.target) input.value = val;
     });
   }
-  if (calculado) setStatus('', 'Carteira alterada — recalcule o rebalanceamento.');
+  
+  recalcularPatrimonioFront();
 }
 
 function redistribuirPesos() {
@@ -1303,8 +1379,11 @@ function lerCarteiraUI() {
     if (!map[ticker]) return;
     const qtdEl = tr.querySelector('.qty-input');
     const pesoEl = tr.querySelector('.peso-input');
-    if (qtdEl) map[ticker].quantidade = parseInt(qtdEl.value) || 0;
-    if (pesoEl) map[ticker].peso = (parseFloat(pesoEl.value) || 0) / 100;
+    if (qtdEl) map[ticker].quantidade = parseFloat(qtdEl.value) || 0;
+    if (pesoEl) {
+      map[ticker].peso = (parseFloat(pesoEl.value) || 0) / 100;
+      map[ticker].ignorar = pesoEl.disabled;
+    }
   });
   return Object.values(map);
 }
@@ -1591,7 +1670,7 @@ function fecharModal() { document.getElementById('modal-overlay').classList.remo
 async function confirmarAdicionarAtivo() {
   const ticker = document.getElementById('m-ticker').value.trim().toUpperCase();
   const peso = parseFloat(document.getElementById('m-peso').value) || 0;
-  const qtd = parseInt(document.getElementById('m-qtd').value) || 0;
+  const qtd = parseFloat(document.getElementById('m-qtd').value) || 0;
   const errEl = document.getElementById('modal-error');
   if (!ticker) { errEl.textContent = 'Informe o ticker.'; errEl.style.display = 'block'; return; }
   if (peso <= 0) { errEl.textContent = 'Informe um peso maior que zero.'; errEl.style.display = 'block'; return; }
@@ -1619,6 +1698,36 @@ async function removerAtivo(display) {
     setStatus('ok', `${display} removido. Recarregando...`);
     setTimeout(() => location.reload(), 600);
   } catch(e) { setStatus('error', 'Erro ao remover: ' + e.message); }
+}
+
+function toggleIgnorar(ticker) {
+    const tr = document.querySelector(`#tbody tr[data-ticker="${ticker}"]`);
+    if (!tr) return;
+    
+    const isIgnored = !tr.classList.contains('ignorado');
+    
+    const elements = [
+        tr, 
+        document.querySelector(`.mobile-cards .ativo-card[data-ticker-card="${ticker}"]`)
+    ].filter(Boolean);
+    
+    elements.forEach(el => {
+        el.classList.toggle('ignorado', isIgnored);
+        
+        const btn = el.querySelector('.btn-ignorar');
+        if (btn) {
+            btn.classList.toggle('ativo', isIgnored);
+            btn.innerHTML = `<i class="ph ph-lock-key${isIgnored ? '' : '-open'}"></i>`;
+        }
+        
+        const pesoInput = el.querySelector('.peso-input');
+        if (pesoInput) {
+            pesoInput.disabled = isIgnored;
+        }
+    });
+    
+    atualizarSomaPesos();
+    marcarAlterado();
 }
 
 // Init

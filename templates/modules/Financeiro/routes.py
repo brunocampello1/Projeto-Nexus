@@ -139,7 +139,7 @@ def api_add_ativo():
     ticker = body.get("ticker", "").strip().upper()
     display = body.get("display", ticker).strip().upper()
     peso = float(body.get("peso", 0))
-    quantidade = int(body.get("quantidade", 0))
+    quantidade = float(body.get("quantidade", 0))
 
     if not ticker:
         return jsonify({"error": "Ticker obrigatório"}), 400
@@ -190,9 +190,11 @@ def api_update_ativo(display):
     for a in portfolio:
         if a["display"] == display.upper():
             if "quantidade" in body:
-                a["quantidade"] = int(body["quantidade"])
+                a["quantidade"] = float(body["quantidade"])
             if "peso" in body:
                 a["peso"] = float(body["peso"])
+            if "ignorar" in body:
+                a["ignorar"] = bool(body["ignorar"])
             save_portfolio(portfolio)
             return jsonify({"ok": True})
     return jsonify({"error": "Ativo não encontrado"}), 404
@@ -213,11 +215,21 @@ def api_rebalancear():
     tolerancia = float(data.get("tolerancia", 2.0))  # 🔥 recebe do front
 
     portfolio = load_portfolio()
+
+    # Atualiza as quantidades e o ignorar baseados no front
+    portfolio_front = data.get("portfolio", [])
+    map_front = { p["display"]: p for p in portfolio_front }
+    
     for i, item in enumerate(portfolio):
         if item["display"] in quantidades:
-            portfolio[i]["quantidade"] = int(quantidades[item["display"]])
+            portfolio[i]["quantidade"] = float(quantidades[item["display"]])
+        if item["display"] in map_front:
+            portfolio[i]["ignorar"] = map_front[item["display"]].get("ignorar", False)
 
-    precos = fetch_prices(portfolio)
+    precos = data.get("precos")
+    if not precos:
+        precos = fetch_prices(portfolio)
+        
     resultado = calcular_rebalanceamento(portfolio, precos, aporte, tolerancia)
     return jsonify(resultado)
 

@@ -152,7 +152,7 @@ def update_ativo(
 
             if quantidade is not None:
 
-                ativo["quantidade"] = int(
+                ativo["quantidade"] = float(
                     quantidade
                 )
 
