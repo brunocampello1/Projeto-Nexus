@@ -17,11 +17,7 @@ from .storage import (
     save_portfolio,
     add_ativo,
     remove_ativo,
-    update_ativo,
-    listar_backups,
-    restaurar_backup,
-    BACKUP_DIR,
-    PORTFOLIO_FILE
+    update_ativo
 )
 
 import os
@@ -265,44 +261,13 @@ def api_aplicar():
 # BACKUPS
 # =====================================================
 
-@financeiro_bp.route(
-    "/api/backups",
-    methods=["GET"]
-)
+@financeiro_bp.route("/api/backups", methods=["GET"])
 def api_backups():
+    return jsonify([])
 
-    return jsonify(
-        listar_backups()
-    )
-
-
-# =====================================================
-# RESTAURAR BACKUP
-# =====================================================
-
-@financeiro_bp.route(
-    "/api/restaurar",
-    methods=["POST"]
-)
+@financeiro_bp.route("/api/restaurar", methods=["POST"])
 def api_restaurar():
-
-    body = request.json or {}
-
-    arquivo = body.get("arquivo")
-
-    try:
-
-        resultado = restaurar_backup(
-            arquivo
-        )
-
-        return jsonify(resultado)
-
-    except ValueError as e:
-
-        return jsonify({
-            "error": str(e)
-        }), 400
+    return jsonify({"error": "Backups físicos desabilitados. Os dados estão no banco de dados."}), 400
 
 @financeiro_bp.route("/api/ativos")
 def api_buscar_ativos():
@@ -324,10 +289,7 @@ def api_buscar_ativos():
 # LIMPAR CARTEIRA
 # =====================================================
 
-@financeiro_bp.route(
-    "/api/limpar-carteira",
-    methods=["POST"]
-)
+@financeiro_bp.route("/api/limpar-carteira", methods=["POST"])
 def api_limpar_carteira():
     portfolio = load_portfolio()
 
@@ -336,22 +298,10 @@ def api_limpar_carteira():
             "error": "A carteira já está vazia."
         }), 400
 
-    # Backup de segurança antes de limpar
-    timestamp = datetime.now().strftime(
-        "%Y-%m-%d_%H-%M-%S"
-    )
-    backup_file = os.path.join(
-        BACKUP_DIR,
-        f"portfolio_pre_limpeza_{timestamp}.json"
-    )
-    with open(backup_file, "w", encoding="utf-8") as f:
-        json.dump(portfolio, f, ensure_ascii=False, indent=2)
-
     # Limpar
     save_portfolio([])
 
     return jsonify({
         "ok": True,
-        "message": f"Carteira limpa com sucesso. {len(portfolio)} ativos removidos. Backup salvo.",
-        "backup": backup_file
+        "message": f"Carteira limpa com sucesso. {len(portfolio)} ativos removidos."
     })

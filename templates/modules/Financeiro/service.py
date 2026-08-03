@@ -4,6 +4,8 @@ import math
 import yfinance as yf
 from datetime import datetime
 
+from models import db, HistoricoAporte, CompraAtivo
+
 from .storage import (
     load_portfolio,
     save_portfolio,
@@ -321,165 +323,52 @@ def calcular_rebalanceamento(
 
 def aplicar_rebalanceamento(data):
 
-    ativos = data.get(
-        "ativos",
-        []
-    )
+    ativos = data.get("ativos", [])
+    aporte = float(data.get("aporte", 0))
+    saldo = float(data.get("saldo_nao_investido", 0))
 
-    aporte = float(
-        data.get(
-            "aporte",
-            0
-        )
-    )
-
-    saldo = float(
-        data.get(
-            "saldo_nao_investido",
-            0
-        )
-    )
-
-    compras = [
-
-        a for a in ativos
-
-        if a.get(
-            "sugestao_qtd",
-            0
-        ) > 0
-    ]
+    compras = [a for a in ativos if a.get("sugestao_qtd", 0) > 0]
 
     if not compras:
-
-        raise ValueError(
-            "Nenhuma compra sugerida para aplicar."
-        )
+        raise ValueError("Nenhuma compra sugerida para aplicar.")
 
     portfolio = load_portfolio()
 
-    timestamp = datetime.now().strftime(
-        "%Y-%m-%d_%H-%M-%S"
+    # Cria o histórico de aporte no banco
+    novo_historico = HistoricoAporte(
+        aporte=aporte,
+        saldo_nao_investido=saldo
     )
-
-    backup_file = os.path.join(
-        BACKUP_DIR,
-        f"portfolio_{timestamp}.json"
-    )
-
-    with open(
-        backup_file,
-        "w",
-        encoding="utf-8"
-    ) as f:
-
-        json.dump(
-            portfolio,
-            f,
-            ensure_ascii=False,
-            indent=2
-        )
-
-    historico = []
-
-    if os.path.exists(
-        HISTORICO_FILE
-    ):
-
-        try:
-
-            with open(
-                HISTORICO_FILE,
-                "r",
-                encoding="utf-8"
-            ) as f:
-
-                historico = json.load(f)
-
-        except:
-
-            historico = []
-
-    registro = {
-
-        "data":
-            datetime.now().strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-
-        "aporte":
-            aporte,
-
-        "saldo_nao_investido":
-            saldo,
-
-        "compras": []
-    }
+    db.session.add(novo_historico)
 
     for compra in compras:
-
         ticker = compra["display"]
 
+        # Atualiza a carteira localmente
         for ativo in portfolio:
-
             if ativo["display"] == ticker:
-
-                ativo["quantidade"] += (
-                    compra[
-                        "sugestao_qtd"
-                    ]
-                )
-
-                registro[
-                    "compras"
-                ].append({
-
-                    "ticker":
-                        ticker,
-
-                    "quantidade":
-                        compra[
-                            "sugestao_qtd"
-                        ],
-
-                    "preco":
-                        compra[
-                            "preco_atual"
-                        ],
-
-                    "valor":
-                        compra[
-                            "sugestao_valor"
-                        ]
-                })
-
+                ativo["quantidade"] += compra["sugestao_qtd"]
                 break
 
-    save_portfolio(
-        portfolio
-    )
-
-    historico.append(
-        registro
-    )
-
-    with open(
-        HISTORICO_FILE,
-        "w",
-        encoding="utf-8"
-    ) as f:
-
-        json.dump(
-            historico,
-            f,
-            ensure_ascii=False,
-            indent=2
+        # Salva o registro da compra no banco vinculado ao histórico
+        nova_compra = CompraAtivo(
+            historico=novo_historico,
+            ticker=ticker,
+            quantidade=compra["sugestao_qtd"],
+            preco=compra["preco_atual"],
+            valor=compra["sugestao_valor"]
         )
+        db.session.add(nova_compra)
+
+    # Salva a nova configuração da carteira no banco
+    save_portfolio(portfolio)
+    
+    # Obs: o db.session.commit() já é chamado dentro de save_portfolio, 
+    # o que salvará o novo_historico e as compras que adicionamos à sessão.
 
     return {
         "ok": True,
-        "message":
-            "Alterações aplicadas com sucesso."
+        "message": "Alterações aplicadas com sucesso."
     }
 def formatar_ticker_yahoo(
     ticker: str

@@ -43,3 +43,29 @@ class Subtarefa(db.Model):
     concluida = db.Column(db.Boolean, default=False)
     ordem = db.Column(db.Integer, default=0) # Para o ranqueamento
     tarefa_id = db.Column(db.Integer, db.ForeignKey('tarefa.id'), nullable=False)
+
+# ==========================================
+# MÓDULO 3: FINANCEIRO
+# ==========================================
+class Ativo(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    ticker = db.Column(db.String(20), nullable=False)
+    display = db.Column(db.String(20), nullable=False)
+    peso = db.Column(db.Float, default=0.0)
+    quantidade = db.Column(db.Float, default=0.0)
+    ignorar = db.Column(db.Boolean, default=False)
+
+class HistoricoAporte(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    data = db.Column(db.DateTime, default=db.func.now(), nullable=False)
+    aporte = db.Column(db.Float, default=0.0)
+    saldo_nao_investido = db.Column(db.Float, default=0.0)
+    compras = db.relationship('CompraAtivo', backref='historico', lazy=True, cascade="all, delete-orphan")
+
+class CompraAtivo(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    historico_id = db.Column(db.Integer, db.ForeignKey('historico_aporte.id'), nullable=False)
+    ticker = db.Column(db.String(20), nullable=False)
+    quantidade = db.Column(db.Float, default=0.0)
+    preco = db.Column(db.Float, default=0.0)
+    valor = db.Column(db.Float, default=0.0)

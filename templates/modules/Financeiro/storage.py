@@ -1,259 +1,97 @@
-import json
 import os
-from datetime import datetime
+from models import db, Ativo
 
 BASE_DIR = os.path.dirname(__file__)
-
-PORTFOLIO_FILE = os.path.join(
-    BASE_DIR,
-    "portfolio.json"
-)
-
-HISTORICO_FILE = os.path.join(
-    BASE_DIR,
-    "historico_aportes.json"
-)
-
-BACKUP_DIR = os.path.join(
-    BASE_DIR,
-    "backups"
-)
-
-os.makedirs(
-    BACKUP_DIR,
-    exist_ok=True
-)
+PORTFOLIO_FILE = os.path.join(BASE_DIR, "portfolio.json")
+HISTORICO_FILE = os.path.join(BASE_DIR, "historico_aportes.json")
+BACKUP_DIR = os.path.join(BASE_DIR, "backups")
 
 DEFAULT_PORTFOLIO = [
     {"ticker": "AURA33.SA", "display": "AURA33.SA", "peso": 1, "quantidade": 35},
-
 ]
 
-
 def load_portfolio():
-
-    if os.path.exists(PORTFOLIO_FILE):
-
-        try:
-
-            with open(
-                PORTFOLIO_FILE,
-                "r",
-                encoding="utf-8"
-            ) as f:
-
-                return json.load(f)
-
-        except Exception:
-            pass
-
-    save_portfolio(
-        DEFAULT_PORTFOLIO
-    )
-
-    return DEFAULT_PORTFOLIO
+    ativos = Ativo.query.all()
+    
+    if not ativos:
+        # Se estiver vazio, adiciona o default e recarrega
+        save_portfolio(DEFAULT_PORTFOLIO)
+        ativos = Ativo.query.all()
+        
+    portfolio = []
+    for a in ativos:
+        portfolio.append({
+            "ticker": a.ticker,
+            "display": a.display,
+            "peso": a.peso,
+            "quantidade": a.quantidade,
+            "ignorar": a.ignorar
+        })
+    return portfolio
 
 def save_portfolio(portfolio):
-
-    with open(
-        PORTFOLIO_FILE,
-        "w",
-        encoding="utf-8"
-    ) as f:
-
-        json.dump(
-            portfolio,
-            f,
-            ensure_ascii=False,
-            indent=2
+    # Deleta os ativos atuais
+    Ativo.query.delete()
+    
+    # Insere a nova lista
+    for item in portfolio:
+        novo_ativo = Ativo(
+            ticker=item["ticker"],
+            display=item["display"],
+            peso=item.get("peso", 0),
+            quantidade=item.get("quantidade", 0),
+            ignorar=item.get("ignorar", False)
         )
+        db.session.add(novo_ativo)
+    
+    db.session.commit()
 
-def add_ativo(
-    ticker,
-    display,
-    peso,
-    quantidade
-):
-
+def add_ativo(ticker, display, peso, quantidade):
     if not ticker:
-
-        raise ValueError(
-            "Ticker obrigatório"
-        )
-
+        raise ValueError("Ticker obrigatório")
     if peso <= 0:
+        raise ValueError("Peso deve ser maior que zero")
 
-        raise ValueError(
-            "Peso deve ser maior que zero"
-        )
+    existe = Ativo.query.filter_by(display=display).first()
+    if existe:
+        raise ValueError(f"Ativo '{display}' já existe na carteira")
 
-    portfolio = load_portfolio()
-
-    if any(
-        a["display"] == display
-        for a in portfolio
-    ):
-
-        raise ValueError(
-            f"Ativo '{display}' já existe na carteira"
-        )
-
-    portfolio.append({
-
-        "ticker": ticker,
-
-        "display": display,
-
-        "peso": peso,
-
-        "quantidade": quantidade
-    })
-
-    save_portfolio(
-        portfolio
+    novo_ativo = Ativo(
+        ticker=ticker,
+        display=display,
+        peso=peso,
+        quantidade=quantidade,
+        ignorar=False
     )
+    db.session.add(novo_ativo)
+    db.session.commit()
+    
+    return load_portfolio()
 
-    return portfolio
 def remove_ativo(display):
+    ativo = Ativo.query.filter_by(display=display.upper()).first()
+    if not ativo:
+        raise ValueError(f"Ativo '{display}' não encontrado")
+    
+    db.session.delete(ativo)
+    db.session.commit()
+    
+    return load_portfolio()
 
-    portfolio = load_portfolio()
-
-    nova = [
-
-        a for a in portfolio
-
-        if a["display"]
-        != display.upper()
-    ]
-
-    if len(nova) == len(portfolio):
-
-        raise ValueError(
-            f"Ativo '{display}' não encontrado"
-        )
-
-    save_portfolio(
-        nova
-    )
-
-    return nova
-
-def update_ativo(
-    display,
-    quantidade=None,
-    peso=None
-):
-
-    portfolio = load_portfolio()
-
-    for ativo in portfolio:
-
-        if ativo["display"] == display.upper():
-
-            if quantidade is not None:
-
-                ativo["quantidade"] = float(
-                    quantidade
-                )
-
-            if peso is not None:
-
-                ativo["peso"] = float(
-                    peso
-                )
-
-            save_portfolio(
-                portfolio
-            )
-
-            return
-
-    raise ValueError(
-        "Ativo não encontrado"
-    )
-def formatar_data_backup(nome):
-
-    raw = (
-        nome
-        .replace("portfolio_", "")
-        .replace(".json", "")
-    )
-
-    dt = datetime.strptime(
-        raw,
-        "%Y-%m-%d_%H-%M-%S"
-    )
-
-    return dt.strftime(
-        "%d/%m/%Y %H:%M"
-    )
+def update_ativo(display, quantidade=None, peso=None):
+    ativo = Ativo.query.filter_by(display=display.upper()).first()
+    if not ativo:
+        raise ValueError("Ativo não encontrado")
+        
+    if quantidade is not None:
+        ativo.quantidade = float(quantidade)
+    if peso is not None:
+        ativo.peso = float(peso)
+        
+    db.session.commit()
 
 def listar_backups():
-
-    if not os.path.exists(
-        BACKUP_DIR
-    ):
-
-        return []
-
-    arquivos = []
-
-    for nome in sorted(
-        os.listdir(BACKUP_DIR),
-        reverse=True
-    ):
-
-        if nome.endswith(".json"):
-
-            arquivos.append({
-
-                "arquivo": nome,
-
-                "data":
-                    formatar_data_backup(
-                        nome
-                    )
-            })
-
-    return arquivos
+    return []
 
 def restaurar_backup(arquivo):
-
-    if not arquivo:
-
-        raise ValueError(
-            "Backup não informado."
-        )
-
-    caminho = os.path.join(
-        BACKUP_DIR,
-        arquivo
-    )
-
-    if not os.path.exists(
-        caminho
-    ):
-
-        raise ValueError(
-            "Backup não encontrado."
-        )
-
-    with open(
-        caminho,
-        "r",
-        encoding="utf-8"
-    ) as f:
-
-        carteira = json.load(f)
-
-    save_portfolio(
-        carteira
-    )
-
-    return {
-
-        "ok": True,
-
-        "message":
-            "Carteira restaurada com sucesso."
-    }
+    raise ValueError("Backups físicos desabilitados. Os dados agora estão salvos no banco de dados.")
