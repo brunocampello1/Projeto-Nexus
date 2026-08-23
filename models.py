@@ -12,12 +12,21 @@ class Habito(db.Model):
     meta_dias = db.Column(db.Integer, default=7, nullable=False)  # Meta de dias por semana (0-7)
     data_criacao = db.Column(db.Date, default=date.today, nullable=False)
     registros = db.relationship('RegistroHabito', backref='habito', lazy=True, cascade="all, delete-orphan")
+    rotina_itens = db.relationship('ItemRotina', backref='habito', lazy=True, cascade="all, delete-orphan")
 
 class RegistroHabito(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     data = db.Column(db.Date, default=date.today, nullable=False)
     concluido = db.Column(db.Boolean, default=False)
     habito_id = db.Column(db.Integer, db.ForeignKey('habito.id'), nullable=False)
+
+class ItemRotina(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    horario_inicio = db.Column(db.String(5), nullable=False, default="08:00")
+    horario_fim = db.Column(db.String(5), nullable=False, default="09:00")
+    habito_id = db.Column(db.Integer, db.ForeignKey('habito.id'), nullable=True)
+    titulo = db.Column(db.String(100), nullable=True)
+    is_bloqueio = db.Column(db.Boolean, default=False)
 
 # ==========================================
 # MÓDULO 2: TAREFAS

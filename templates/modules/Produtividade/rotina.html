@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='produtividade/habito/css/rotina.css') }}">
+<script defer src="{{ url_for('static', filename='produtividade/habito/js/rotina.js') }}"></script>
+
+<div class="header" style="margin-bottom: 1rem; margin-top: -1.5rem;">
+    <h1 style="margin-top: -25px; margin-bottom: 0.25rem;">Planner Diário</h1>
+    <p style="margin-top: 0; margin-bottom: 0;">Organize seus hábitos e compromissos do dia arrastando e soltando os
+        blocos de horário.</p>
+</div>
+
+<!-- KPIs -->
+<div class="kpis-container" style="display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap;">
+    <div class="kpi-card"
+        style="flex: 1; padding: 0.75rem; background: var(--surface, #fff); border-radius: 8px; border: 1px solid var(--border-color); text-align: center; min-width: 150px;">
+        <h3 style="margin: 0; color: var(--text-secondary); font-size: 0.9rem;">Horas Dedicadas</h3>
+        <p style="font-size: 1.5rem; font-weight: bold; margin: 0.25rem 0 0 0; color: var(--accent-color);">{{
+            kpis.horas_ocupadas }}h</p>
+    </div>
+    <div class="kpi-card"
+        style="flex: 1; padding: 0.75rem; background: var(--surface, #fff); border-radius: 8px; border: 1px solid var(--border-color); text-align: center; min-width: 150px;">
+        <h3 style="margin: 0; color: var(--text-secondary); font-size: 0.9rem;">Horas Livres (24h)</h3>
+        <p style="font-size: 1.5rem; font-weight: bold; margin: 0.25rem 0 0 0; color: #10B981;">{{ kpis.horas_livres }}h
+        </p>
+    </div>
+</div>
+
+<!-- Add Form -->
+<form action="{{ url_for('add_item_rotina') }}" method="POST" class="add-form"
+    style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem; flex-wrap: wrap;">
+    <input type="time" name="horario_inicio" required
+        style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--surface); color: var(--text-primary);"
+        value="08:00">
+    <span style="color: var(--text-secondary); font-weight: 500;">até</span>
+    <input type="time" name="horario_fim" required
+        style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--surface); color: var(--text-primary);"
+        value="09:00">
+
+    <input type="text" name="habito_nome" placeholder="Nome do hábito (ex: Academia)" required
+        style="flex: 1; min-width: 200px; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--surface); color: var(--text-primary);">
+    <div style="display: flex; align-items: center; gap: 0.5rem; white-space: nowrap;">
+        <input type="checkbox" name="is_bloqueio" id="isBloqueio"
+            style="cursor: pointer; width: 1.2rem; height: 1.2rem;">
+        <label for="isBloqueio"
+            style="color: var(--text-secondary); cursor: pointer; font-size: 0.9rem; margin: 0;">Bloquear
+            Horário</label>
+    </div>
+    <button type="submit"
+        style="padding: 0.75rem 1.5rem; background: var(--accent-color); color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Adicionar</button>
+</form>
+
+<!-- Planner Grid -->
+<div class="planner-container">
+    <div class="planner-grid" id="plannerGrid">
+
+        <!-- Grid background lines -->
+        <div class="grid-lines">
+            {% for hour in range(0, 24) %}
+            <div class="grid-line"></div>
+            {% endfor %}
+        </div>
+
+        <!-- Time Column -->
+        <div class="time-column">
+            {% for hour in range(0, 24) %}
+            <div class="time-slot">{{ "%02d:00" | format(hour) }}</div>
+            {% endfor %}
+        </div>
+
+        <!-- Routine Blocks -->
+        {% for item in itens_rotina %}
+        <div class="routine-block {% if item.is_bloqueio %}bloqueio{% endif %}" draggable="true"
+            title="{{ item.nome_display }} - {{ item.duracao_str }} {% if item.is_bloqueio %}bloqueadas{% else %}dedicadas{% endif %}"
+            data-id="{{ item.id }}" data-nome="{{ item.nome_display }}"
+            data-is-bloqueio="{{ 'true' if item.is_bloqueio else 'false' }}" data-inicio="{{ item.horario_inicio }}"
+            data-fim="{{ item.horario_fim }}" style="top: {{ item.css_top }}%; height: {{ item.css_height }}%;">
+            <div class="block-title" title="{{ item.nome_display }}">{{ item.nome_display }}</div>
+            <div class="block-time">{{ item.horario_inicio }} - {{ item.horario_fim }}</div>
+        </div>
+        {% endfor %}
+
+    </div>
+</div>
+
+<!-- Modal Edit -->
+<div id="editModal" class="modal-overlay hidden">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Editar Bloco</h2>
+            <button class="close-modal" id="closeModal" type="button">&times;</button>
+        </div>
+        <form id="formEditItem" method="POST">
+            <input type="hidden" id="editItemId" name="item_id">
+            <div class="form-group">
+                <label>Nome / Título</label>
+                <input type="text" id="editHabitoNome" name="habito_nome" required>
+            </div>
+            <div class="form-group"
+                style="flex-direction: row; align-items: center; justify-content: flex-start; gap: 0.5rem; margin-top: -0.5rem;">
+                <input type="checkbox" id="editIsBloqueio" name="is_bloqueio" style="width: auto; cursor: pointer;">
+                <label for="editIsBloqueio" style="margin: 0; font-size: 0.9rem; cursor: pointer;">É um bloqueio de
+                    horário</label>
+            </div>
+            <div style="display: flex; gap: 1rem;">
+                <div class="form-group" style="flex: 1;">
+                    <label>Início</label>
+                    <input type="time" id="editHorarioInicio" name="horario_inicio" required>
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>Fim</label>
+                    <input type="time" id="editHorarioFim" name="horario_fim" required>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+                <button type="submit" form="formDeleteItem" class="btn btn-danger">Excluir Bloco</button>
+            </div>
+        </form>
+        <form id="formDeleteItem" method="POST" style="display: none;"></form>
+    </div>
+</div>
+{% endblock %}

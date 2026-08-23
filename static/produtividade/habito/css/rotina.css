@@ -1,0 +1,207 @@
+.planner-container {
+    display: flex;
+    flex-direction: column;
+    /* Faz o container ocupar o espaço restante sem barra de rolagem geral ou interna */
+    height: calc(100vh - 280px);
+    min-height: 480px; 
+    overflow: hidden;
+    background: var(--surface, #fff);
+    border-radius: 8px;
+    border: 1px solid var(--border-color, #e2e8f0);
+    position: relative;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.planner-grid {
+    position: relative;
+    height: 100%;
+}
+
+/* Background horizontal lines */
+.grid-lines {
+    position: absolute;
+    top: 0;
+    left: 80px; /* offset for time column */
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    pointer-events: none; /* so we can click through them to the container if needed */
+}
+
+.grid-line {
+    height: calc(100% / 24);
+    border-bottom: 1px solid var(--border-color, #e2e8f0);
+    box-sizing: border-box;
+}
+
+/* Time slots column */
+.time-column {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 80px;
+    bottom: 0;
+    background: var(--bg-color, #f8fafc);
+    border-right: 1px solid var(--border-color, #e2e8f0);
+    display: flex;
+    flex-direction: column;
+    z-index: 5;
+}
+
+.time-slot {
+    height: calc(100% / 24);
+    box-sizing: border-box;
+    border-bottom: 1px solid var(--border-color, #e2e8f0);
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: 2px;
+    color: var(--text-secondary, #64748b);
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+/* Draggable Blocks */
+.routine-block {
+    position: absolute;
+    left: 90px;
+    right: 15px;
+    background-color: var(--accent-color, #6366f1);
+    color: #fff;
+    border-radius: 6px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.85rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    cursor: grab;
+    z-index: 10;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.1s, box-shadow 0.1s, opacity 0.2s;
+    user-select: none;
+}
+
+.routine-block:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    filter: brightness(1.1);
+}
+
+.routine-block.dragging {
+    opacity: 0.8;
+    cursor: grabbing;
+    z-index: 20;
+    transform: scale(1.02);
+}
+
+.routine-block.bloqueio {
+    background-color: var(--surface-strong, #f8fafc);
+    color: var(--text-secondary, #64748b);
+    background-image: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 10px,
+        rgba(128,128,128,0.1) 10px,
+        rgba(128,128,128,0.1) 20px
+    );
+    border: 1px dashed var(--border-color);
+    box-shadow: none;
+}
+
+.routine-block.bloqueio:hover {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    filter: brightness(0.95);
+}
+
+.block-title {
+    font-weight: 600;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+.block-time {
+    font-size: 0.75rem;
+    opacity: 0.9;
+    margin-top: 2px;
+}
+
+/* Edit Modal */
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+.modal-overlay.hidden {
+    display: none;
+}
+.modal-content {
+    background: var(--surface, #fff);
+    padding: 2rem;
+    border-radius: 12px;
+    width: 400px;
+    max-width: 90vw;
+    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+}
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.25rem;
+    color: var(--text-primary);
+}
+.close-modal {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--text-secondary);
+}
+.form-group {
+    margin-bottom: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.form-group label {
+    font-weight: 500;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+.form-group input {
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 1rem;
+    color: var(--text-primary);
+    background: var(--surface);
+}
+.modal-actions {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 2rem;
+    gap: 1rem;
+}
+.btn {
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    flex: 1;
+}
+.btn-primary {
+    background: var(--accent-color, #6366f1);
+    color: #fff;
+}
+.btn-danger {
+    background: #ef4444;
+    color: white;
+}

@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify
-from models import db, Habito, RegistroHabito, Tarefa, Subtarefa
+from models import db, Habito, RegistroHabito, Tarefa, Subtarefa, ItemRotina
 from datetime import date, timedelta, datetime
 from sqlalchemy import text
 from sqlalchemy.orm import joinedload
@@ -23,6 +23,15 @@ db.init_app(app)
 app.register_blueprint(financeiro_bp, url_prefix='/financeiro')
 
 with app.app_context():
+    # Auto-migração da Rotina: recriar se usar o esquema antigo 'horario' ou faltar 'is_bloqueio'
+    try:
+        rotina_cols = [row[1] for row in db.session.execute(text("PRAGMA table_info(item_rotina);"))]
+        if rotina_cols and ('horario_inicio' not in rotina_cols or 'is_bloqueio' not in rotina_cols):
+            db.session.execute(text("DROP TABLE item_rotina"))
+            db.session.commit()
+    except Exception:
+        db.session.rollback()
+
     db.create_all()
 
     # Auto-migração do SQLite para o campo de ordenação
@@ -346,6 +355,137 @@ def habito_history(habito_id):
         'taxa_sucesso': taxa_sucesso
     })
 
+
+# ==========================================
+# MÓDULO: ROTINA
+# ==========================================
+@app.route('/rotina')
+def rotina():
+    itens_rotina = ItemRotina.query.options(joinedload(ItemRotina.habito)).all()
+    
+    # Calcular KPIs
+    # Planner vai das 00:00 até 24:00 (24 horas = 1440 minutos)
+    total_minutos_dia = 24 * 60
+    minutos_ocupados = 0
+    
+    for item in itens_rotina:
+        try:
+            h_ini, m_ini = map(int, item.horario_inicio.split(':'))
+            h_fim, m_fim = map(int, item.horario_fim.split(':'))
+            minutos = (h_fim * 60 + m_fim) - (h_ini * 60 + m_ini)
+            if minutos > 0:
+                minutos_ocupados += minutos
+                
+            # Planner config: 00:00 to 24:00 (1440 minutes)
+            start_min = h_ini * 60 + m_ini
+            end_min = max(start_min + 15, h_fim * 60 + m_fim) # minimo 15min de duração
+            item.css_top = (start_min / 1440.0) * 100
+            item.css_height = ((end_min - start_min) / 1440.0) * 100
+            
+            dur_mins = end_min - start_min
+            h_dur = dur_mins // 60
+            m_dur = dur_mins % 60
+            if h_dur > 0 and m_dur > 0:
+                item.duracao_str = f"{int(h_dur)}h {int(m_dur)}min"
+            elif h_dur > 0:
+                item.duracao_str = f"{int(h_dur)}h"
+            else:
+                item.duracao_str = f"{int(m_dur)}min"
+            
+        except Exception as e:
+            print("Erro no item", e)
+            item.css_top = 0
+            item.css_height = (60 / 1440.0) * 100
+            item.duracao_str = "1h"
+            
+        item.nome_display = item.titulo if item.is_bloqueio else (item.habito.nome if item.habito else "Sem Nome")
+            
+    horas_ocupadas = round(minutos_ocupados / 60, 1)
+    horas_livres = round((total_minutos_dia - minutos_ocupados) / 60, 1)
+    if horas_livres < 0: horas_livres = 0
+    
+    kpis = {
+        'horas_ocupadas': horas_ocupadas,
+        'horas_livres': horas_livres
+    }
+
+    return render_template('modules/Produtividade/rotina.html', itens_rotina=itens_rotina, kpis=kpis)
+
+@app.route('/add_item_rotina', methods=['POST'])
+def add_item_rotina():
+    horario_inicio = request.form.get('horario_inicio')
+    horario_fim = request.form.get('horario_fim')
+    habito_nome = request.form.get('habito_nome')
+    is_bloqueio = request.form.get('is_bloqueio') == 'on'
+    
+    if horario_inicio and horario_fim and habito_nome:
+        if is_bloqueio:
+            novo_item = ItemRotina(horario_inicio=horario_inicio, horario_fim=horario_fim, is_bloqueio=True, titulo=habito_nome)
+            db.session.add(novo_item)
+        else:
+            habito = Habito.query.filter_by(nome=habito_nome).first()
+            if not habito:
+                habito = Habito(nome=habito_nome)
+                db.session.add(habito)
+                db.session.flush()
+                
+            novo_item = ItemRotina(horario_inicio=horario_inicio, horario_fim=horario_fim, habito_id=habito.id)
+            db.session.add(novo_item)
+            
+        db.session.commit()
+        
+    return redirect(url_for('rotina'))
+
+@app.route('/update_item_rotina/<int:item_id>', methods=['POST'])
+def update_item_rotina(item_id):
+    item = ItemRotina.query.get_or_404(item_id)
+    
+    if request.is_json:
+        data = request.get_json()
+        if 'horario_inicio' in data:
+            item.horario_inicio = data['horario_inicio']
+        if 'horario_fim' in data:
+            item.horario_fim = data['horario_fim']
+    else:
+        # Form submission via modal
+        item.horario_inicio = request.form.get('horario_inicio', item.horario_inicio)
+        item.horario_fim = request.form.get('horario_fim', item.horario_fim)
+        
+        habito_nome = request.form.get('habito_nome')
+        is_bloqueio = request.form.get('is_bloqueio') == 'on'
+        
+        if habito_nome:
+            if is_bloqueio:
+                item.is_bloqueio = True
+                item.titulo = habito_nome
+                item.habito_id = None
+            else:
+                item.is_bloqueio = False
+                item.titulo = None
+                if not item.habito or item.habito.nome != habito_nome:
+                    # Check if new habit exists
+                    habito = Habito.query.filter_by(nome=habito_nome).first()
+                    if not habito:
+                        habito = Habito(nome=habito_nome)
+                        db.session.add(habito)
+                        db.session.flush()
+                    item.habito_id = habito.id
+
+    db.session.commit()
+    
+    if request.is_json:
+        return jsonify({'success': True})
+    return redirect(url_for('rotina'))
+
+@app.route('/delete_item_rotina/<int:item_id>', methods=['POST'])
+def delete_item_rotina(item_id):
+    item = ItemRotina.query.get_or_404(item_id)
+    db.session.delete(item)
+    db.session.commit()
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+        return jsonify({'success': True})
+    return redirect(url_for('rotina'))
 
 # ==========================================
 # MÓDULO: TAREFAS
