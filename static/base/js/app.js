@@ -57,6 +57,21 @@ if (productivityToggle && productivitySubmenu) {
   });
 }
 
+// Dashboards submenu toggle
+const dashboardsToggle = document.getElementById('dashboardsToggle');
+const dashboardsSubmenu = document.getElementById('dashboardsSubmenu');
+if (dashboardsToggle && dashboardsSubmenu) {
+  dashboardsToggle.addEventListener('click', () => {
+    const expanded = dashboardsToggle.getAttribute('aria-expanded') === 'true';
+    dashboardsToggle.setAttribute('aria-expanded', !expanded);
+    dashboardsSubmenu.style.display = expanded ? 'none' : 'block';
+    const arrow = dashboardsToggle.querySelector('.submenu-arrow');
+    if (arrow) {
+      arrow.style.transform = expanded ? 'rotate(0deg)' : 'rotate(180deg)';
+    }
+  });
+}
+
     }
 
     // Navegação Semanal por AJAX (SPA-style) para evitar page reloads e agilizar cliques

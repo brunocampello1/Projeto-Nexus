@@ -96,6 +96,28 @@
             </div>
 
             <ul class="sidebar-menu" role="menu">
+                <!-- MENU DASHBOARDS -->
+                <li class="sidebar-item" role="menuitem">
+                    <button class="sidebar-toggle" id="dashboardsToggle" aria-expanded="false" aria-controls="dashboardsSubmenu">
+                        <i class="ph ph-chart-line-up" style="font-size: 1rem;" aria-hidden="true"></i>
+                        <span>Dashboards</span>
+                        <i class="ph ph-caret-down submenu-arrow" style="margin-left:auto; font-size:0.9rem; transition: transform 0.3s ease;" aria-hidden="true"></i>
+                    </button>
+                    <ul class="submenu" id="dashboardsSubmenu" style="display:none; list-style:none; padding-left:1rem;" role="menu">
+                        <li role="menuitem">
+                            <a href="{{ url_for('dashboard_habitos') }}" style="display:flex; align-items:center; gap:0.5rem; text-decoration:none;">
+                                <i class="ph ph-check-circle" style="font-size: 1rem;" aria-hidden="true"></i><span>Hábitos</span>
+                            </a>
+                        </li>
+                        <li role="menuitem">
+                            <a href="{{ url_for('dashboard_alimentacao') }}" style="display:flex; align-items:center; gap:0.5rem; text-decoration:none;">
+                                <i class="ph ph-fork-knife" style="font-size: 1rem;" aria-hidden="true"></i><span>Alimentação</span>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+                
+                <!-- MENU PRODUTIVIDADE -->
                 <li class="sidebar-item" role="menuitem">
                     <button class="sidebar-toggle" id="productivityToggle" aria-expanded="false" aria-controls="productivitySubmenu">
                         <i class="ph ph-rocket" style="font-size: 1rem;" aria-hidden="true"></i>
@@ -116,6 +138,11 @@
                         <li role="menuitem">
                             <a href="{{ url_for('rotina') }}" style="display:flex; align-items:center; gap:0.5rem; text-decoration:none;">
                                 <i class="ph ph-clock" style="font-size: 1rem;" aria-hidden="true"></i><span>Rotina</span>
+                            </a>
+                        </li>
+                        <li role="menuitem">
+                            <a href="{{ url_for('alimentacao') }}" style="display:flex; align-items:center; gap:0.5rem; text-decoration:none;">
+                                <i class="ph ph-fork-knife" style="font-size: 1rem;" aria-hidden="true"></i><span>Alimentação</span>
                             </a>
                         </li>
                     </ul>

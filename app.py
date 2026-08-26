@@ -1,9 +1,9 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify
-from models import db, Habito, RegistroHabito, Tarefa, Subtarefa, ItemRotina
+from models import db, Habito, RegistroHabito, Tarefa, Subtarefa, ItemRotina, RegistroAlimentacao, MetricasAlimentacao, RefeicaoFixa
 from datetime import date, timedelta, datetime
 from sqlalchemy import text
 from sqlalchemy.orm import joinedload
-import os
+import os, json
 
 # Importando blueprint do módulo Financeiro
 from templates.modules.Financeiro.routes import financeiro_bp
@@ -33,6 +33,34 @@ with app.app_context():
         db.session.rollback()
 
     db.create_all()
+
+    # Auto-migração JSON -> DB para Alimentação
+    try:
+        if RegistroAlimentacao.query.count() == 0 and MetricasAlimentacao.query.count() == 0:
+            if os.path.exists('historico_calorias.json'):
+                with open('historico_calorias.json', 'r', encoding='utf-8') as f:
+                    dados_historico = json.load(f)
+                    for data_str, registros in dados_historico.items():
+                        try:
+                            d = datetime.strptime(data_str, "%Y-%m-%d").date()
+                            for r in registros:
+                                db.session.add(RegistroAlimentacao(data=d, nome=r['nome'], calorias=r['calorias'], tipo=r['tipo']))
+                        except Exception:
+                            pass
+            
+            if os.path.exists('metricas_usuario.json'):
+                with open('metricas_usuario.json', 'r', encoding='utf-8') as f:
+                    dados_metricas = json.load(f)
+                    for data_str, metricas in dados_metricas.items():
+                        try:
+                            d = datetime.strptime(data_str, "%Y-%m-%d").date()
+                            db.session.add(MetricasAlimentacao(data=d, peso=metricas.get('peso', 0.0), meta_calorias=metricas.get('meta', 2000)))
+                        except Exception:
+                            pass
+            db.session.commit()
+    except Exception as e:
+        print("Erro na migração de Alimentação:", e)
+        db.session.rollback()
 
     # Auto-migração do SQLite para o campo de ordenação
     try:
@@ -225,11 +253,82 @@ def habitos():
     domingo_ativo = domingo + timedelta(weeks=week_offset)
     dias = [domingo_ativo + timedelta(days=i) for i in range(7)]
     
-    # Calcular KPIs
+    return render_template('modules/Produtividade/habitos.html', habitos=lista_habitos, dias=dias, week_offset=week_offset, now=hoje)
+
+# ==========================================
+# MÓDULO: DASHBOARDS
+# ==========================================
+@app.route('/dashboard/habitos')
+def dashboard_habitos():
+    try:
+        week_offset = int(request.args.get('week_offset', 0))
+    except ValueError:
+        week_offset = 0
+
+    lista_habitos = Habito.query.options(joinedload(Habito.registros)).order_by(Habito.nome).all()
+    hoje = date.today()
+    domingo = hoje - timedelta(days=(hoje.weekday() + 1) % 7)
+    domingo_ativo = domingo + timedelta(weeks=week_offset)
+    dias = [domingo_ativo + timedelta(days=i) for i in range(7)]
+    
     kpis = calcular_kpis_habitos(lista_habitos, dias)
     tendencia = calcular_tendencia(lista_habitos)
     
-    return render_template('modules/Produtividade/habitos.html', habitos=lista_habitos, dias=dias, kpis=kpis, tendencia=tendencia, week_offset=week_offset, now=hoje)
+    return render_template('modules/Dashboards/habitos.html', habitos=lista_habitos, dias=dias, kpis=kpis, tendencia=tendencia, week_offset=week_offset, now=hoje)
+
+@app.route('/dashboard/alimentacao')
+def dashboard_alimentacao():
+    data_str = request.args.get('data')
+    if data_str:
+        data_ref = datetime.strptime(data_str, "%Y-%m-%d").date()
+    else:
+        data_ref = date.today()
+        data_str = data_ref.strftime("%Y-%m-%d")
+        
+    registros_do_dia = RegistroAlimentacao.query.filter_by(data=data_ref).all()
+    metrica_hoje = MetricasAlimentacao.query.filter_by(data=data_ref).first()
+    
+    if not metrica_hoje:
+        metrica_hoje = MetricasAlimentacao(data=data_ref, peso=0.0, meta_calorias=2000)
+        
+    diario = sum(r.calorias for r in registros_do_dia)
+    
+    semana_atras = data_ref - timedelta(days=6)
+    registros_semana = RegistroAlimentacao.query.filter(RegistroAlimentacao.data >= semana_atras, RegistroAlimentacao.data <= data_ref).all()
+    semanal = sum(r.calorias for r in registros_semana)
+    
+    inicio_mes = data_ref.replace(day=1)
+    registros_mes = RegistroAlimentacao.query.filter(RegistroAlimentacao.data >= inicio_mes, RegistroAlimentacao.data <= data_ref).all()
+    mensal = sum(r.calorias for r in registros_mes)
+    
+    peso_anterior = 0.0
+    ultima_met = MetricasAlimentacao.query.filter(MetricasAlimentacao.data < data_ref, MetricasAlimentacao.peso > 0).order_by(MetricasAlimentacao.data.desc()).first()
+    if ultima_met:
+        peso_anterior = ultima_met.peso
+        
+    metricas_com_peso = MetricasAlimentacao.query.filter(MetricasAlimentacao.peso > 0).order_by(MetricasAlimentacao.data.asc()).all()
+    grafico_peso = [{"x": m.data.strftime("%d/%m"), "y": m.peso} for m in metricas_com_peso]
+    
+    grafico_calorias = []
+    for i in range(6, -1, -1):
+        dia_g = data_ref - timedelta(days=i)
+        tot = sum(r.calorias for r in registros_semana if r.data == dia_g)
+        grafico_calorias.append({"x": dia_g.strftime("%d/%m"), "y": tot})
+        
+    kpis = {
+        'diario': diario,
+        'meta': metrica_hoje.meta_calorias,
+        'semanal': semanal,
+        'mensal': mensal,
+        'peso_atual': metrica_hoje.peso,
+        'peso_anterior': peso_anterior
+    }
+
+    return render_template('modules/Dashboards/alimentacao.html', 
+                           data_str=data_str,
+                           kpis=kpis,
+                           grafico_peso=grafico_peso,
+                           grafico_calorias=grafico_calorias)
 
 @app.route('/add_habito', methods=['POST'])
 def add_habito():
@@ -589,6 +688,106 @@ def reorder_tarefas():
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+# ==========================================
+# MÓDULO: ALIMENTAÇÃO
+# ==========================================
+@app.route('/alimentacao')
+def alimentacao():
+    data_str = request.args.get('data')
+    if data_str:
+        data_ref = datetime.strptime(data_str, "%Y-%m-%d").date()
+    else:
+        data_ref = date.today()
+        data_str = data_ref.strftime("%Y-%m-%d")
+        
+    registros_do_dia = RegistroAlimentacao.query.filter_by(data=data_ref).all()
+    
+    dieta_fixa = RefeicaoFixa.query.all()
+    
+    refeicoes_logadas = [r.nome for r in registros_do_dia if r.tipo == 'Dieta']
+
+    return render_template('modules/Produtividade/alimentacao.html', 
+                           data_str=data_str,
+                           registros=registros_do_dia,
+                           dieta_fixa=dieta_fixa,
+                           refeicoes_logadas=refeicoes_logadas)
+
+@app.route('/add_registro_alimentacao', methods=['POST'])
+def add_registro_alimentacao():
+    data_str = request.form.get('data')
+    nome = request.form.get('nome')
+    calorias = int(request.form.get('calorias', 0))
+    tipo = request.form.get('tipo', 'Extra')
+    
+    if data_str and nome and calorias > 0:
+        data_ref = datetime.strptime(data_str, "%Y-%m-%d").date()
+        reg = RegistroAlimentacao(data=data_ref, nome=nome, calorias=calorias, tipo=tipo)
+        db.session.add(reg)
+        db.session.commit()
+        
+    return redirect(url_for('alimentacao', data=data_str))
+
+@app.route('/remove_registro_dieta', methods=['POST'])
+def remove_registro_dieta():
+    data_str = request.form.get('data')
+    nome = request.form.get('nome')
+    
+    if data_str and nome:
+        data_ref = datetime.strptime(data_str, "%Y-%m-%d").date()
+        reg = RegistroAlimentacao.query.filter_by(data=data_ref, nome=nome, tipo='Dieta').first()
+        if reg:
+            db.session.delete(reg)
+            db.session.commit()
+            
+    return redirect(url_for('alimentacao', data=data_str))
+
+@app.route('/delete_registro_alimentacao/<int:id>', methods=['POST'])
+def delete_registro_alimentacao(id):
+    data_str = request.form.get('data')
+    reg = RegistroAlimentacao.query.get_or_404(id)
+    db.session.delete(reg)
+    db.session.commit()
+    return redirect(url_for('alimentacao', data=data_str))
+
+@app.route('/update_metricas_alimentacao', methods=['POST'])
+def update_metricas_alimentacao():
+    data_str = request.form.get('data')
+    data_ref = datetime.strptime(data_str, "%Y-%m-%d").date()
+    
+    metrica = MetricasAlimentacao.query.filter_by(data=data_ref).first()
+    if not metrica:
+        metrica = MetricasAlimentacao(data=data_ref)
+        db.session.add(metrica)
+        
+    peso = request.form.get('peso')
+    if peso:
+        metrica.peso = float(peso)
+        
+    meta_calorias = request.form.get('meta_calorias')
+    if meta_calorias:
+        metrica.meta_calorias = int(meta_calorias)
+        
+    db.session.commit()
+    
+    return redirect(url_for('dashboard_alimentacao', data=data_str))
+
+@app.route('/add_refeicao_fixa', methods=['POST'])
+def add_refeicao_fixa():
+    nome = request.form.get('nome')
+    calorias = request.form.get('calorias')
+    if nome and calorias:
+        nova_ref = RefeicaoFixa(nome=nome, calorias=int(calorias))
+        db.session.add(nova_ref)
+        db.session.commit()
+    return redirect(url_for('alimentacao'))
+
+@app.route('/delete_refeicao_fixa/<int:id>', methods=['POST'])
+def delete_refeicao_fixa(id):
+    ref = RefeicaoFixa.query.get_or_404(id)
+    db.session.delete(ref)
+    db.session.commit()
+    return redirect(url_for('alimentacao'))
 
 if __name__ == '__main__':
     app.run(debug=True)

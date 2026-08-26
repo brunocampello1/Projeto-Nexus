@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% block topbar_title %}
+<div class="breadcrumb" style="display:flex; align-items:center; gap:0.5rem; font-size:0.85rem; color:var(--text-secondary);">
+    <i class="ph ph-chart-line-up" aria-hidden="true"></i> Dashboards
+</div>
+<h1 style="font-size:1.25rem; margin:0; font-weight:600;">Dashboard de Alimentação</h1>
+{% endblock %}
+
+{% block topbar_actions %}
+<div style="display: flex; gap: 0.5rem; align-items: center;">
+    <form id="dateForm" action="{{ url_for('dashboard_alimentacao') }}" method="GET" style="display: flex; gap: 0.5rem;">
+        <input type="date" name="data" id="dataSelecionada" value="{{ data_str }}" onchange="document.getElementById('dateForm').submit();" style="padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--surface); color: var(--text-primary);">
+    </form>
+</div>
+{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='produtividade/alimentacao/css/alimentacao.css') }}">
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<div class="kpis-container">
+    <div class="kpi-card">
+        <h3>Consumo Hoje</h3>
+        <p class="{% if kpis.meta - kpis.diario < 0 %}danger{% endif %}">{{ kpis.diario }} / {{ kpis.meta }} kcal</p>
+        <small>{{ (kpis.meta - kpis.diario)|abs }} kcal {% if kpis.meta - kpis.diario >= 0 %}restantes{% else %}estouradas{% endif %}</small>
+    </div>
+    <div class="kpi-card">
+        <h3>Tendência de Peso</h3>
+        <p>{{ kpis.peso_atual }} kg</p>
+        <small>{% if kpis.peso_anterior > 0 %}{% set delta = kpis.peso_atual - kpis.peso_anterior %}{% if delta > 0 %}+{% endif %}{{ delta|round(2) }} kg desde o último registro{% else %}Primeiro registro{% endif %}</small>
+    </div>
+    <div class="kpi-card">
+        <h3>Acumulado (7 dias)</h3>
+        <p>{{ kpis.semanal }} kcal</p>
+    </div>
+    <div class="kpi-card">
+        <h3>Acumulado Mensal</h3>
+        <p>{{ kpis.mensal }} kcal</p>
+    </div>
+</div>
+
+<div class="alimentacao-layout">
+    <div class="alimentacao-col">
+        <div class="card card-metas">
+            <h2><i class="ph ph-target"></i> Suas Metas de Hoje</h2>
+            <form action="{{ url_for('update_metricas_alimentacao') }}" method="POST" class="metas-form">
+                <input type="hidden" name="data" value="{{ data_str }}">
+                <div class="input-group">
+                    <label>Peso Atual (kg)</label>
+                    <input type="number" step="0.1" name="peso" value="{{ kpis.peso_atual }}" min="0">
+                </div>
+                <div class="input-group">
+                    <label>Meta Calórica</label>
+                    <input type="number" name="meta_calorias" value="{{ kpis.meta }}" min="1">
+                </div>
+                <button type="submit" class="btn-primary">Atualizar</button>
+            </form>
+        </div>
+
+        <div class="card card-chart">
+            <h2><i class="ph ph-chart-line-up"></i> Histórico de Peso</h2>
+            <div class="chart-container">
+                <canvas id="chartPeso"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="alimentacao-col">
+        <div class="card card-chart">
+            <h2><i class="ph ph-chart-bar"></i> Calorias (Últimos 7 dias)</h2>
+            <div class="chart-container">
+                <canvas id="chartCalorias"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Data para os gráficos
+    const graficoPesoData = {{ grafico_peso|tojson }};
+    const graficoCaloriasData = {{ grafico_calorias|tojson }};
+</script>
+<script defer src="{{ url_for('static', filename='produtividade/alimentacao/js/alimentacao.js') }}"></script>
+{% endblock %}

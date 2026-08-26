@@ -78,3 +78,24 @@ class CompraAtivo(db.Model):
     quantidade = db.Column(db.Float, default=0.0)
     preco = db.Column(db.Float, default=0.0)
     valor = db.Column(db.Float, default=0.0)
+
+# ==========================================
+# MÓDULO 4: ALIMENTAÇÃO
+# ==========================================
+class RegistroAlimentacao(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    data = db.Column(db.Date, default=date.today, nullable=False)
+    nome = db.Column(db.String(150), nullable=False)
+    calorias = db.Column(db.Integer, nullable=False)
+    tipo = db.Column(db.String(50), nullable=False)  # 'Dieta' ou 'Extra'
+
+class MetricasAlimentacao(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    data = db.Column(db.Date, default=date.today, unique=True, nullable=False)
+    peso = db.Column(db.Float, default=0.0)
+    meta_calorias = db.Column(db.Integer, default=2000)
+
+class RefeicaoFixa(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(150), nullable=False)
+    calorias = db.Column(db.Integer, nullable=False)
