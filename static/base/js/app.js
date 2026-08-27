@@ -1,17 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
     applySavedTheme();
 
-    document.querySelectorAll('.habit-toggle').forEach(button => {
-        button.addEventListener('click', handleHabitToggle);
-    });
+    initAppListeners();
 
-    document.querySelectorAll('.meta-input').forEach(input => {
-        input.addEventListener('change', handleMetaChange);
-    });
-
-    document.querySelectorAll('.subtask-toggle-btn').forEach(button => {
-        button.addEventListener('click', handleSubtaskToggle);
-    });
 
     const themeToggle = document.getElementById('themeToggle');
     if (themeToggle) {
@@ -74,68 +65,7 @@ if (dashboardsToggle && dashboardsSubmenu) {
 
     }
 
-    // Navegação Semanal por AJAX (SPA-style) para evitar page reloads e agilizar cliques
-    document.body.addEventListener('click', async (event) => {
-        const navBtn = event.target.closest('.nav-week-btn-small');
-        if (!navBtn) return;
-        
-        event.preventDefault();
-        const url = navBtn.getAttribute('href');
-        if (!url) return;
-        
-        try {
-            const tableContainer = document.querySelector('.habits-table-container');
-            if (tableContainer) tableContainer.style.opacity = '0.6';
-
-            const response = await fetch(url, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            });
-            if (!response.ok) throw new Error('Falha ao carregar semana');
-            
-            const html = await response.text();
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-            
-            // Atualizar URL sem recarregar a página
-            window.history.pushState({}, '', url);
-            
-            // 1. Atualizar Tabela
-            const newTable = doc.querySelector('.habits-table-container');
-            const currentTable = document.querySelector('.habits-table-container');
-            if (newTable && currentTable) {
-                currentTable.innerHTML = newTable.innerHTML;
-            }
-            
-            // 2. Atualizar KPIs
-            const newKpis = doc.querySelector('.kpis-container');
-            const currentKpis = document.querySelector('.kpis-container');
-            if (newKpis && currentKpis) {
-                currentKpis.innerHTML = newKpis.innerHTML;
-            }
-            
-            // 3. Atualizar Ranking
-            const newRanking = doc.querySelector('.ranking-card');
-            const currentRanking = document.querySelector('.ranking-card');
-            if (newRanking && currentRanking) {
-                currentRanking.innerHTML = newRanking.innerHTML;
-            }
-            
-            // Re-associar listeners de eventos
-            document.querySelectorAll('.habit-toggle').forEach(button => {
-                button.addEventListener('click', handleHabitToggle);
-            });
-            document.querySelectorAll('.meta-input').forEach(input => {
-                input.addEventListener('change', handleMetaChange);
-            });
-            
-            if (tableContainer) tableContainer.style.opacity = '1';
-        } catch (error) {
-            console.error(error);
-            window.location.href = url;
-        }
-    });
+    // Interceptor SPA movido para o escopo global
 });
 
 function applySavedTheme() {
@@ -609,6 +539,126 @@ function setupHoneycombTooltipListeners() {
     newContainer.addEventListener('mouseout', (event) => {
         if (event.target.closest('.hexagon-cell')) {
             tooltip.classList.remove('show');
+        }
+    });
+}
+
+
+function initAppListeners(root = document) {
+    root.querySelectorAll('.habit-toggle').forEach(button => {
+        button.addEventListener('click', handleHabitToggle);
+    });
+    root.querySelectorAll('.meta-input').forEach(input => {
+        input.addEventListener('change', handleMetaChange);
+    });
+    root.querySelectorAll('.subtask-toggle-btn').forEach(button => {
+        button.addEventListener('click', handleSubtaskToggle);
+    });
+}
+
+// SPA Global Interceptor for Forms and Links
+async function navigateSPA(url, options = {}) {
+    try {
+        const response = await fetch(url, {
+            ...options,
+            headers: { ...options.headers, 'X-Requested-With': 'XMLHttpRequest' }
+        });
+
+        if (!response.ok) throw new Error('Network response was not ok');
+
+        const html = await response.text();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+
+        const newContent = doc.querySelector('.page-shell');
+        const currentContent = document.querySelector('.page-shell');
+
+        if (newContent && currentContent) {
+            currentContent.innerHTML = newContent.innerHTML;
+            executeScripts(currentContent);
+            initAppListeners(currentContent);
+            
+            if ((!options.method || options.method.toUpperCase() === 'GET') && !options.isPopState) {
+                window.history.pushState({}, '', url);
+            }
+        } else {
+            if (!options.isPopState) window.location.href = url;
+        }
+    } catch (error) {
+        console.error('SPA Error:', error);
+        if (!options.isPopState) window.location.href = url;
+    }
+}
+
+// Intercept links
+document.addEventListener('click', (e) => {
+    const link = e.target.closest('a');
+    if (!link) return;
+    if (link.target === '_blank' || link.classList.contains('no-ajax')) return;
+    
+    const url = link.href;
+    if (!url.startsWith(window.location.origin) || link.getAttribute('href').startsWith('#')) return;
+
+    e.preventDefault();
+    navigateSPA(url);
+});
+
+// Intercept forms (including GET like calendar)
+document.addEventListener('submit', async (e) => {
+    const form = e.target;
+    if (form.classList.contains('no-ajax')) return;
+    if (form.getAttribute('onsubmit') && e.defaultPrevented) return;
+    
+    e.preventDefault();
+    
+    const btn = form.querySelector('button[type="submit"]');
+    let originalContent = '';
+    if (btn) {
+        originalContent = btn.innerHTML;
+        btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';
+        btn.style.opacity = '0.7';
+        btn.disabled = true;
+    }
+
+    const formData = new FormData(form);
+    let url = form.action;
+    let options = { method: form.method };
+
+    if (form.method.toUpperCase() === 'GET') {
+        const params = new URLSearchParams(formData).toString();
+        url = url.split('?')[0] + '?' + params;
+    } else {
+        options.body = formData;
+    }
+
+    await navigateSPA(url, options);
+
+    if (btn && document.body.contains(btn)) {
+        btn.innerHTML = originalContent;
+        btn.style.opacity = '1';
+        btn.disabled = false;
+    }
+});
+
+window.addEventListener('popstate', () => {
+    navigateSPA(window.location.href, { isPopState: true });
+});
+
+function executeScripts(element) {
+    const scripts = element.querySelectorAll('script');
+    scripts.forEach(oldScript => {
+        const newScript = document.createElement('script');
+        Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+        
+        if (oldScript.src) {
+            newScript.appendChild(document.createTextNode(oldScript.innerHTML));
+        } else {
+            // Isola variáveis let/const para não dar erro de redeclaração ao navegar (PJAX)
+            newScript.appendChild(document.createTextNode(`(function(){ \n${oldScript.innerHTML}\n })();`));
+        }
+        
+        if (oldScript.parentNode) {
+            oldScript.parentNode.replaceChild(newScript, oldScript);
         }
     });
 }

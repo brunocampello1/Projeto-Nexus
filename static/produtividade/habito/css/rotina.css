@@ -6,10 +6,10 @@
     min-height: 480px; 
     overflow: hidden;
     background: var(--surface, #fff);
-    border-radius: 8px;
+    border-radius: 0;
     border: 1px solid var(--border-color, #e2e8f0);
     position: relative;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    box-shadow: none;
 }
 
 .planner-grid {
@@ -69,10 +69,10 @@
     right: 15px;
     background-color: var(--accent-color, #6366f1);
     color: #fff;
-    border-radius: 6px;
+    border-radius: 0;
     padding: 0.25rem 0.5rem;
     font-size: 0.85rem;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    box-shadow: none;
     cursor: grab;
     z-index: 10;
     overflow: hidden;
@@ -83,7 +83,7 @@
 }
 
 .routine-block:hover {
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    box-shadow: none;
     filter: brightness(1.1);
 }
 
@@ -109,7 +109,7 @@
 }
 
 .routine-block.bloqueio:hover {
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    box-shadow: none;
     filter: brightness(0.95);
 }
 
@@ -141,10 +141,10 @@
 .modal-content {
     background: var(--surface, #fff);
     padding: 2rem;
-    border-radius: 12px;
+    border-radius: 0;
     width: 400px;
     max-width: 90vw;
-    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+    box-shadow: none;
 }
 .modal-header {
     display: flex;
@@ -178,7 +178,7 @@
 .form-group input {
     padding: 0.75rem;
     border: 1px solid var(--border-color);
-    border-radius: 6px;
+    border-radius: 0;
     font-size: 1rem;
     color: var(--text-primary);
     background: var(--surface);
@@ -191,7 +191,7 @@
 }
 .btn {
     padding: 0.75rem 1rem;
-    border-radius: 6px;
+    border-radius: 0;
     border: none;
     cursor: pointer;
     font-weight: 600;

@@ -10,9 +10,9 @@
     min-width: 150px;
     background: var(--surface, #fff);
     border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 1rem;
-    box-shadow: var(--shadow);
+    border-radius: 0;
+    padding: 0.5rem;
+    box-shadow: none;
 }
 
 .kpi-card h3 {
@@ -39,7 +39,7 @@
 
 .alimentacao-layout {
     display: flex;
-    gap: 1.5rem;
+    gap: 1rem;
     flex-wrap: wrap;
 }
 
@@ -48,21 +48,21 @@
     min-width: 300px;
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 1rem;
 }
 
 .card {
     background: var(--surface, #fff);
     border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 1.5rem;
-    box-shadow: var(--shadow);
+    border-radius: 0;
+    padding: 0.5rem;
+    box-shadow: none;
 }
 
 .card h2 {
     font-size: 1.1rem;
     margin-top: 0;
-    margin-bottom: 1rem;
+    margin-bottom: 0.5rem;
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -76,7 +76,7 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.75rem 0;
+    padding: 0.4rem 0;
     border-bottom: 1px solid var(--border-color);
 }
 .refeicao-item:last-child {
@@ -106,7 +106,7 @@
 .vilao-form input {
     padding: 0.6rem;
     border: 1px solid var(--border-color);
-    border-radius: 6px;
+    border-radius: 0;
     background: var(--surface);
     color: var(--text-primary);
 }
@@ -123,7 +123,7 @@
     background: var(--accent-color);
     color: #fff;
     border: none;
-    border-radius: 6px;
+    border-radius: 0;
     font-weight: 600;
     cursor: pointer;
 }
@@ -142,7 +142,7 @@
 .input-group input {
     padding: 0.6rem;
     border: 1px solid var(--border-color);
-    border-radius: 6px;
+    border-radius: 0;
     background: var(--surface);
     color: var(--text-primary);
 }
@@ -157,7 +157,7 @@
     border-collapse: collapse;
 }
 .history-table th, .history-table td {
-    padding: 0.75rem;
+    padding: 0.5rem;
     text-align: left;
     border-bottom: 1px solid var(--border-color);
     color: var(--text-primary);
@@ -168,7 +168,7 @@
 }
 .badge {
     padding: 0.2rem 0.5rem;
-    border-radius: 12px;
+    border-radius: 0;
     font-size: 0.75rem;
     font-weight: bold;
 }
@@ -194,7 +194,7 @@
     color: var(--text-secondary);
     font-style: italic;
     text-align: center;
-    padding: 1rem;
+    padding: 0.5rem;
 }
 
 .chart-container {

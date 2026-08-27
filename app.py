@@ -312,8 +312,9 @@ def dashboard_alimentacao():
     grafico_calorias = []
     for i in range(6, -1, -1):
         dia_g = data_ref - timedelta(days=i)
-        tot = sum(r.calorias for r in registros_semana if r.data == dia_g)
-        grafico_calorias.append({"x": dia_g.strftime("%d/%m"), "y": tot})
+        tot_dieta = sum(r.calorias for r in registros_semana if r.data == dia_g and r.tipo == 'Dieta')
+        tot_extra = sum(r.calorias for r in registros_semana if r.data == dia_g and r.tipo == 'Extra')
+        grafico_calorias.append({"x": dia_g.strftime("%d/%m"), "dieta": tot_dieta, "extra": tot_extra})
         
     kpis = {
         'diario': diario,
