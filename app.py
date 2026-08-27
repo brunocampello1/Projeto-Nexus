@@ -276,15 +276,7 @@ def dashboard_habitos():
     
     return render_template('modules/Dashboards/habitos.html', habitos=lista_habitos, dias=dias, kpis=kpis, tendencia=tendencia, week_offset=week_offset, now=hoje)
 
-@app.route('/dashboard/alimentacao')
-def dashboard_alimentacao():
-    data_str = request.args.get('data')
-    if data_str:
-        data_ref = datetime.strptime(data_str, "%Y-%m-%d").date()
-    else:
-        data_ref = date.today()
-        data_str = data_ref.strftime("%Y-%m-%d")
-        
+def get_alimentacao_data(data_ref):
     registros_do_dia = RegistroAlimentacao.query.filter_by(data=data_ref).all()
     metrica_hoje = MetricasAlimentacao.query.filter_by(data=data_ref).first()
     
@@ -324,6 +316,18 @@ def dashboard_alimentacao():
         'peso_atual': metrica_hoje.peso,
         'peso_anterior': peso_anterior
     }
+    return kpis, grafico_peso, grafico_calorias
+
+@app.route('/dashboard/alimentacao')
+def dashboard_alimentacao():
+    data_str = request.args.get('data')
+    if data_str:
+        data_ref = datetime.strptime(data_str, "%Y-%m-%d").date()
+    else:
+        data_ref = date.today()
+        data_str = data_ref.strftime("%Y-%m-%d")
+        
+    kpis, grafico_peso, grafico_calorias = get_alimentacao_data(data_ref)
 
     return render_template('modules/Dashboards/alimentacao.html', 
                            data_str=data_str,
@@ -338,6 +342,18 @@ def add_habito():
         novo_habito = Habito(nome=nome)
         db.session.add(novo_habito)
         db.session.commit()
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({
+                'success': True,
+                'habito': {
+                    'id': novo_habito.id,
+                    'nome': novo_habito.nome,
+                    'meta_dias': novo_habito.meta_dias,
+                    'data_criacao': novo_habito.data_criacao.isoformat()
+                }
+            })
+            
     return redirect(url_for('habitos'))
 
 @app.route('/toggle_habito/<int:habito_id>/<data_str>', methods=['POST'])
@@ -384,6 +400,10 @@ def delete_habito(habito_id):
     habito = Habito.query.get_or_404(habito_id)
     db.session.delete(habito)
     db.session.commit()
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({'success': True, 'id': habito_id})
+        
     return redirect(url_for('habitos'))
 
 # NOVO: Rota para atualizar meta de hábito
@@ -459,15 +479,10 @@ def habito_history(habito_id):
 # ==========================================
 # MÓDULO: ROTINA
 # ==========================================
-@app.route('/rotina')
-def rotina():
-    itens_rotina = ItemRotina.query.options(joinedload(ItemRotina.habito)).all()
-    
-    # Calcular KPIs
-    # Planner vai das 00:00 até 24:00 (24 horas = 1440 minutos)
+def get_rotina_kpis():
+    itens_rotina = ItemRotina.query.all()
     total_minutos_dia = 24 * 60
     minutos_ocupados = 0
-    
     for item in itens_rotina:
         try:
             h_ini, m_ini = map(int, item.horario_inicio.split(':'))
@@ -475,10 +490,26 @@ def rotina():
             minutos = (h_fim * 60 + m_fim) - (h_ini * 60 + m_ini)
             if minutos > 0:
                 minutos_ocupados += minutos
-                
-            # Planner config: 00:00 to 24:00 (1440 minutes)
+        except:
+            pass
+    horas_ocupadas = round(minutos_ocupados / 60, 1)
+    horas_livres = round((total_minutos_dia - minutos_ocupados) / 60, 1)
+    if horas_livres < 0: horas_livres = 0
+    return {
+        'horas_ocupadas': horas_ocupadas,
+        'horas_livres': horas_livres
+    }
+
+@app.route('/rotina')
+def rotina():
+    itens_rotina = ItemRotina.query.options(joinedload(ItemRotina.habito)).all()
+    
+    for item in itens_rotina:
+        try:
+            h_ini, m_ini = map(int, item.horario_inicio.split(':'))
+            h_fim, m_fim = map(int, item.horario_fim.split(':'))
             start_min = h_ini * 60 + m_ini
-            end_min = max(start_min + 15, h_fim * 60 + m_fim) # minimo 15min de duração
+            end_min = max(start_min + 15, h_fim * 60 + m_fim)
             item.css_top = (start_min / 1440.0) * 100
             item.css_height = ((end_min - start_min) / 1440.0) * 100
             
@@ -493,21 +524,13 @@ def rotina():
                 item.duracao_str = f"{int(m_dur)}min"
             
         except Exception as e:
-            print("Erro no item", e)
             item.css_top = 0
             item.css_height = (60 / 1440.0) * 100
             item.duracao_str = "1h"
             
         item.nome_display = item.titulo if item.is_bloqueio else (item.habito.nome if item.habito else "Sem Nome")
             
-    horas_ocupadas = round(minutos_ocupados / 60, 1)
-    horas_livres = round((total_minutos_dia - minutos_ocupados) / 60, 1)
-    if horas_livres < 0: horas_livres = 0
-    
-    kpis = {
-        'horas_ocupadas': horas_ocupadas,
-        'horas_livres': horas_livres
-    }
+    kpis = get_rotina_kpis()
 
     return render_template('modules/Produtividade/rotina.html', itens_rotina=itens_rotina, kpis=kpis)
 
@@ -533,6 +556,20 @@ def add_item_rotina():
             db.session.add(novo_item)
             
         db.session.commit()
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            nome_display = novo_item.titulo if novo_item.is_bloqueio else (novo_item.habito.nome if novo_item.habito else "Sem Nome")
+            return jsonify({
+                'success': True,
+                'item': {
+                    'id': novo_item.id,
+                    'horario_inicio': novo_item.horario_inicio,
+                    'horario_fim': novo_item.horario_fim,
+                    'is_bloqueio': novo_item.is_bloqueio,
+                    'nome_display': nome_display
+                },
+                'kpis': get_rotina_kpis()
+            })
         
     return redirect(url_for('rotina'))
 
@@ -573,8 +610,19 @@ def update_item_rotina(item_id):
 
     db.session.commit()
     
-    if request.is_json:
-        return jsonify({'success': True})
+    if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        nome_display = item.titulo if item.is_bloqueio else (item.habito.nome if item.habito else "Sem Nome")
+        return jsonify({
+            'success': True,
+            'item': {
+                'id': item.id,
+                'horario_inicio': item.horario_inicio,
+                'horario_fim': item.horario_fim,
+                'is_bloqueio': item.is_bloqueio,
+                'nome_display': nome_display
+            },
+            'kpis': get_rotina_kpis()
+        })
     return redirect(url_for('rotina'))
 
 @app.route('/delete_item_rotina/<int:item_id>', methods=['POST'])
@@ -584,7 +632,7 @@ def delete_item_rotina(item_id):
     db.session.commit()
     
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
-        return jsonify({'success': True})
+        return jsonify({'success': True, 'id': item_id, 'kpis': get_rotina_kpis()})
     return redirect(url_for('rotina'))
 
 # ==========================================
@@ -604,6 +652,19 @@ def add_tarefa():
         nova_tarefa = Tarefa(titulo=titulo, ordem=(max_ordem + 1))
         db.session.add(nova_tarefa)
         db.session.commit()
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({
+                'success': True,
+                'tarefa': {
+                    'id': nova_tarefa.id,
+                    'titulo': nova_tarefa.titulo,
+                    'status': nova_tarefa.status,
+                    'ordem': nova_tarefa.ordem,
+                    'progresso': nova_tarefa.progresso
+                }
+            })
+            
     return redirect(url_for('tarefas'))
 
 @app.route('/add_subtarefa/<int:tarefa_id>', methods=['POST'])
@@ -615,6 +676,19 @@ def add_subtarefa(tarefa_id):
         nova_sub = Subtarefa(descricao=descricao, tarefa_id=tarefa.id, ordem=ordem_atual)
         db.session.add(nova_sub)
         db.session.commit()
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({
+                'success': True,
+                'subtarefa': {
+                    'id': nova_sub.id,
+                    'descricao': nova_sub.descricao,
+                    'concluida': nova_sub.concluida,
+                    'tarefa_id': nova_sub.tarefa_id
+                },
+                'progresso': tarefa.progresso
+            })
+            
     return redirect(url_for('tarefas'))
 
 @app.route('/toggle_subtarefa/<int:subtarefa_id>', methods=['POST'])
@@ -640,14 +714,25 @@ def delete_tarefa(tarefa_id):
     tarefa = Tarefa.query.get_or_404(tarefa_id)
     db.session.delete(tarefa)
     db.session.commit()
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({'success': True, 'id': tarefa_id})
+        
     return redirect(url_for('tarefas'))
 
 # NOVO: Rota para excluir subtarefa
 @app.route('/delete_subtarefa/<int:subtarefa_id>', methods=['POST'])
 def delete_subtarefa(subtarefa_id):
     subtarefa = Subtarefa.query.get_or_404(subtarefa_id)
+    tarefa_id = subtarefa.tarefa_id
     db.session.delete(subtarefa)
     db.session.commit()
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        tarefa = Tarefa.query.get(tarefa_id)
+        progresso = tarefa.progresso if tarefa else 0
+        return jsonify({'success': True, 'id': subtarefa_id, 'tarefa_id': tarefa_id, 'progresso': progresso})
+        
     return redirect(url_for('tarefas'))
 
 # NOVO: Rota para atualizar status da tarefa
@@ -727,6 +812,16 @@ def add_registro_alimentacao():
         db.session.add(reg)
         db.session.commit()
         
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            kpis, grafico_peso, grafico_calorias = get_alimentacao_data(data_ref)
+            return jsonify({
+                'success': True,
+                'registro': {'id': reg.id, 'nome': reg.nome, 'calorias': reg.calorias, 'tipo': reg.tipo},
+                'kpis': kpis,
+                'grafico_peso': grafico_peso,
+                'grafico_calorias': grafico_calorias
+            })
+            
     return redirect(url_for('alimentacao', data=data_str))
 
 @app.route('/remove_registro_dieta', methods=['POST'])
@@ -741,14 +836,37 @@ def remove_registro_dieta():
             db.session.delete(reg)
             db.session.commit()
             
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                kpis, grafico_peso, grafico_calorias = get_alimentacao_data(data_ref)
+                return jsonify({
+                    'success': True,
+                    'nome': nome,
+                    'kpis': kpis,
+                    'grafico_peso': grafico_peso,
+                    'grafico_calorias': grafico_calorias
+                })
+            
     return redirect(url_for('alimentacao', data=data_str))
 
 @app.route('/delete_registro_alimentacao/<int:id>', methods=['POST'])
 def delete_registro_alimentacao(id):
     data_str = request.form.get('data')
     reg = RegistroAlimentacao.query.get_or_404(id)
+    reg_id = reg.id
     db.session.delete(reg)
     db.session.commit()
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        data_ref = datetime.strptime(data_str, "%Y-%m-%d").date()
+        kpis, grafico_peso, grafico_calorias = get_alimentacao_data(data_ref)
+        return jsonify({
+            'success': True,
+            'id': reg_id,
+            'kpis': kpis,
+            'grafico_peso': grafico_peso,
+            'grafico_calorias': grafico_calorias
+        })
+        
     return redirect(url_for('alimentacao', data=data_str))
 
 @app.route('/update_metricas_alimentacao', methods=['POST'])
@@ -771,6 +889,15 @@ def update_metricas_alimentacao():
         
     db.session.commit()
     
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        kpis, grafico_peso, grafico_calorias = get_alimentacao_data(data_ref)
+        return jsonify({
+            'success': True,
+            'kpis': kpis,
+            'grafico_peso': grafico_peso,
+            'grafico_calorias': grafico_calorias
+        })
+    
     return redirect(url_for('dashboard_alimentacao', data=data_str))
 
 @app.route('/add_refeicao_fixa', methods=['POST'])
@@ -781,13 +908,28 @@ def add_refeicao_fixa():
         nova_ref = RefeicaoFixa(nome=nome, calorias=int(calorias))
         db.session.add(nova_ref)
         db.session.commit()
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({
+                'success': True,
+                'refeicao': {'id': nova_ref.id, 'nome': nova_ref.nome, 'calorias': nova_ref.calorias}
+            })
+            
     return redirect(url_for('alimentacao'))
 
 @app.route('/delete_refeicao_fixa/<int:id>', methods=['POST'])
 def delete_refeicao_fixa(id):
     ref = RefeicaoFixa.query.get_or_404(id)
+    ref_id = ref.id
     db.session.delete(ref)
     db.session.commit()
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({
+            'success': True,
+            'id': ref_id
+        })
+        
     return redirect(url_for('alimentacao'))
 
 if __name__ == '__main__':

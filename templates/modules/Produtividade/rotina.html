@@ -26,7 +26,7 @@
 </div>
 
 <!-- Add Form -->
-<form action="{{ url_for('add_item_rotina') }}" method="POST" class="add-form"
+<form action="{{ url_for('add_item_rotina') }}" method="POST" class="add-form ajax-form form-add-rotina"
     style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem; flex-wrap: wrap;">
     <input type="time" name="horario_inicio" required
         style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--surface); color: var(--text-primary);"
@@ -89,7 +89,7 @@
             <h2>Editar Bloco</h2>
             <button class="close-modal" id="closeModal" type="button">&times;</button>
         </div>
-        <form id="formEditItem" method="POST">
+        <form id="formEditItem" method="POST" class="ajax-form form-edit-rotina">
             <input type="hidden" id="editItemId" name="item_id">
             <div class="form-group">
                 <label>Nome / Título</label>
@@ -116,7 +116,7 @@
                 <button type="submit" form="formDeleteItem" class="btn btn-danger">Excluir Bloco</button>
             </div>
         </form>
-        <form id="formDeleteItem" method="POST" style="display: none;"></form>
+        <form id="formDeleteItem" method="POST" style="display: none;" class="ajax-form form-delete-rotina"></form>
     </div>
 </div>
 {% endblock %}

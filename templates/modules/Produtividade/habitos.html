@@ -9,7 +9,7 @@
 
 
 
-<form action="{{ url_for('add_habito') }}" method="POST" class="add-form">
+<form action="{{ url_for('add_habito') }}" method="POST" class="add-form ajax-form form-add-habito">
     <input type="text" name="nome" placeholder="Novo hábito (ex: Ler 10 páginas, Correr 5km)..." required>
     <button type="submit">Adicionar Hábito</button>
 </form>
@@ -52,7 +52,7 @@
                     <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; width: 100%;">
                         <span class="habit-name-text" style="font-weight: 600; font-size: 0.95rem; color: var(--text-primary); text-overflow: ellipsis; overflow: hidden; white-space: nowrap;" title="{{ habito.nome }}">{{ habito.nome }}</span>
                         <!-- Botão de Excluir Hábito -->
-                        <form action="{{ url_for('delete_habito', habito_id=habito.id) }}" method="POST" style="margin: 0;" onsubmit="return confirm('Tem certeza que deseja excluir este hábito?');">
+                        <form action="{{ url_for('delete_habito', habito_id=habito.id) }}" method="POST" style="margin: 0;" onsubmit="return confirm('Tem certeza que deseja excluir este hábito?');" class="ajax-form form-delete-habito">
                             <button type="submit" class="delete-btn" title="Excluir hábito" style="padding: 2px; margin: 0;">
                                 <i class="ph ph-trash" style="font-size: 0.85rem;"></i>
                             </button>

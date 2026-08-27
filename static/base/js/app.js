@@ -607,6 +607,7 @@ document.addEventListener('click', (e) => {
 document.addEventListener('submit', async (e) => {
     const form = e.target;
     if (form.classList.contains('no-ajax')) return;
+    if (form.classList.contains('ajax-form')) return;
     if (form.getAttribute('onsubmit') && e.defaultPrevented) return;
     
     e.preventDefault();

@@ -9,7 +9,7 @@
 {% block topbar_actions %}
 <div style="display: flex; gap: 0.5rem; align-items: center;">
     <form id="dateForm" action="{{ url_for('alimentacao') }}" method="GET" style="display: flex; gap: 0.5rem;">
-        <input type="date" name="data" id="dataSelecionada" value="{{ data_str }}" onchange="document.getElementById('dateForm').submit();" style="padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--surface); color: var(--text-primary);">
+        <input type="date" name="data" id="dataSelecionada" value="{{ data_str }}" onchange="document.getElementById('dateForm').dispatchEvent(new Event('submit', {cancelable: true, bubbles: true}));" style="padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--surface); color: var(--text-primary);">
     </form>
 </div>
 {% endblock %}
@@ -26,13 +26,13 @@
             {% for refeicao in dieta_fixa %}
             <div class="refeicao-item" style="display:flex; align-items:center;">
                 {% if refeicao.nome in refeicoes_logadas %}
-                <form action="{{ url_for('remove_registro_dieta') }}" method="POST" style="margin:0;">
+                <form action="{{ url_for('remove_registro_dieta') }}" method="POST" style="margin:0;" class="ajax-form form-remove-dieta">
                     <input type="hidden" name="data" value="{{ data_str }}">
                     <input type="hidden" name="nome" value="{{ refeicao.nome }}">
                     <button type="submit" class="btn-check checked"><i class="ph ph-check-square"></i></button>
                 </form>
                 {% else %}
-                <form action="{{ url_for('add_registro_alimentacao') }}" method="POST" style="margin:0;">
+                <form action="{{ url_for('add_registro_alimentacao') }}" method="POST" style="margin:0;" class="ajax-form form-add-dieta">
                     <input type="hidden" name="data" value="{{ data_str }}">
                     <input type="hidden" name="nome" value="{{ refeicao.nome }}">
                     <input type="hidden" name="calorias" value="{{ refeicao.calorias }}">
@@ -42,7 +42,7 @@
                 {% endif %}
                 <span class="refeicao-nome">{{ refeicao.nome }} ({{ refeicao.calorias }} kcal)</span>
                 
-                <form action="{{ url_for('delete_refeicao_fixa', id=refeicao.id) }}" method="POST" style="margin: 0 0 0 auto;" onsubmit="return confirm('Deseja remover esta refeição do seu cardápio fixo?');">
+                <form action="{{ url_for('delete_refeicao_fixa', id=refeicao.id) }}" method="POST" style="margin: 0 0 0 auto;" onsubmit="return confirm('Deseja remover esta refeição do seu cardápio fixo?');" class="ajax-form form-delete-refeicao">
                     <button type="submit" class="btn-icon btn-danger" title="Excluir Refeição Fixa" style="padding: 2px;"><i class="ph ph-trash"></i></button>
                 </form>
             </div>
@@ -52,7 +52,7 @@
             {% endif %}
             
             <hr style="border:0; border-top:1px solid var(--border-color); margin: 1rem 0;">
-            <form action="{{ url_for('add_refeicao_fixa') }}" method="POST" style="display:flex; gap:0.5rem; align-items:center;">
+            <form action="{{ url_for('add_refeicao_fixa') }}" method="POST" style="display:flex; gap:0.5rem; align-items:center;" class="ajax-form form-add-refeicao">
                 <input type="text" name="nome" placeholder="Nova refeição fixa (ex: Lanche)..." required style="flex:1; padding:0.5rem; border-radius:6px; border:1px solid var(--border-color); background:var(--surface); color:var(--text-primary);">
                 <input type="number" name="calorias" placeholder="Kcal" required min="1" style="width:70px; padding:0.5rem; border-radius:6px; border:1px solid var(--border-color); background:var(--surface); color:var(--text-primary);">
                 <button type="submit" class="btn-primary" style="padding:0.5rem 1rem;" title="Adicionar ao cardápio"><i class="ph ph-plus"></i></button>
@@ -61,7 +61,7 @@
 
         <div class="card card-vilao">
             <h2><i class="ph ph-warning-circle"></i> Adicionar um "Vilão" (Extra)</h2>
-            <form action="{{ url_for('add_registro_alimentacao') }}" method="POST" class="vilao-form">
+            <form action="{{ url_for('add_registro_alimentacao') }}" method="POST" class="vilao-form ajax-form form-add-vilao">
                 <input type="hidden" name="data" value="{{ data_str }}">
                 <input type="hidden" name="tipo" value="Extra">
                 <input type="text" name="nome" placeholder="Ex: Pedaço de Pizza" required>
@@ -90,7 +90,7 @@
                             <td>{{ item.calorias }} kcal</td>
                             <td><span class="badge {{ item.tipo|lower }}">{{ item.tipo }}</span></td>
                             <td>
-                                <form action="{{ url_for('delete_registro_alimentacao', id=item.id) }}" method="POST" style="margin:0;">
+                                <form action="{{ url_for('delete_registro_alimentacao', id=item.id) }}" method="POST" style="margin:0;" class="ajax-form form-delete-registro">
                                     <input type="hidden" name="data" value="{{ data_str }}">
                                     <button type="submit" class="btn-icon btn-danger" title="Excluir"><i class="ph ph-trash"></i></button>
                                 </form>
@@ -105,4 +105,5 @@
             {% endif %}
     </div>
 
+<script defer src="{{ url_for('static', filename='produtividade/alimentacao/js/alimentacao.js') }}"></script>
 {% endblock %}

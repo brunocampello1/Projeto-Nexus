@@ -9,7 +9,7 @@
 {% block topbar_actions %}
 <div style="display: flex; gap: 0.5rem; align-items: center;">
     <form id="dateForm" action="{{ url_for('dashboard_alimentacao') }}" method="GET" style="display: flex; gap: 0.5rem;">
-        <input type="date" name="data" id="dataSelecionada" value="{{ data_str }}" onchange="document.getElementById('dateForm').submit();" style="padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--surface); color: var(--text-primary);">
+        <input type="date" name="data" id="dataSelecionada" value="{{ data_str }}" onchange="document.getElementById('dateForm').dispatchEvent(new Event('submit', {cancelable: true, bubbles: true}));" style="padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--surface); color: var(--text-primary);">
     </form>
 </div>
 {% endblock %}
@@ -44,7 +44,7 @@
     <div class="alimentacao-col">
         <div class="card card-metas">
             <h2><i class="ph ph-target"></i> Suas Metas de Hoje</h2>
-            <form action="{{ url_for('update_metricas_alimentacao') }}" method="POST" class="metas-form">
+            <form action="{{ url_for('update_metricas_alimentacao') }}" method="POST" class="metas-form ajax-form form-update-metas">
                 <input type="hidden" name="data" value="{{ data_str }}">
                 <div class="input-group">
                     <label>Peso Atual (kg)</label>
@@ -78,8 +78,8 @@
 
 <script>
     // Data para os gráficos
-    const graficoPesoData = {{ grafico_peso|tojson }};
-    const graficoCaloriasData = {{ grafico_calorias|tojson }};
+    window.graficoPesoData = {{ grafico_peso|tojson }};
+    window.graficoCaloriasData = {{ grafico_calorias|tojson }};
 </script>
 <script defer src="{{ url_for('static', filename='produtividade/alimentacao/js/alimentacao.js') }}"></script>
 {% endblock %}

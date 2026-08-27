@@ -7,7 +7,7 @@
     <p>Organize seus projetos e acompanhe o progresso das subtarefas.</p>
 </div>
 
-<form action="{{ url_for('add_tarefa') }}" method="POST" class="add-form" id="addTaskForm">
+<form action="{{ url_for('add_tarefa') }}" method="POST" class="add-form ajax-form form-add-tarefa" id="addTaskForm">
     <input type="text" name="titulo" placeholder="Nova tarefa principal..." required>
     <button type="submit">Criar Tarefa</button>
 </form>
@@ -35,7 +35,7 @@
             </div>
             
             <!-- Botão de Excluir Tarefa -->
-            <form action="{{ url_for('delete_tarefa', tarefa_id=tarefa.id) }}" method="POST" style="margin: 0;" onsubmit="return confirm('Tem certeza que deseja excluir esta tarefa e TODAS as suas subtarefas?');">
+            <form action="{{ url_for('delete_tarefa', tarefa_id=tarefa.id) }}" method="POST" style="margin: 0;" onsubmit="return confirm('Tem certeza que deseja excluir esta tarefa e TODAS as suas subtarefas?');" class="ajax-form form-delete-tarefa">
                 <button type="submit" class="delete-btn" title="Excluir Tarefa"><i class="ph ph-trash"></i></button>
             </form>
         </div>
@@ -64,14 +64,14 @@
                     </div>
                     
                     <!-- Botão de Excluir Subtarefa -->
-                    <form action="{{ url_for('delete_subtarefa', subtarefa_id=sub.id) }}" method="POST" style="margin: 0;" onsubmit="return confirm('Excluir subtarefa?');">
+                    <form action="{{ url_for('delete_subtarefa', subtarefa_id=sub.id) }}" method="POST" style="margin: 0;" onsubmit="return confirm('Excluir subtarefa?');" class="ajax-form form-delete-subtarefa">
                         <button type="submit" class="delete-btn" title="Excluir Subtarefa"><i class="ph ph-trash"></i></button>
                     </form>
                 </li>
                 {% endfor %}
             </ul>
             
-            <form action="{{ url_for('add_subtarefa', tarefa_id=tarefa.id) }}" method="POST" class="add-subtask-form">
+            <form action="{{ url_for('add_subtarefa', tarefa_id=tarefa.id) }}" method="POST" class="add-subtask-form ajax-form form-add-subtarefa">
                 <input type="text" name="descricao" placeholder="Adicionar subtarefa..." required style="flex: 1;">
                 <button type="submit"><i class="ph ph-plus"></i></button>
             </form>
