@@ -7,6 +7,13 @@
     let chartCaloriasInstance = null;
 
     function initCharts() {
+        // Destroy any existing Chart.js instances (important for SPA re-navigation)
+        if (typeof Chart !== 'undefined') {
+            const existingCharts = Object.values(Chart.instances || {});
+            existingCharts.forEach(chart => {
+                try { chart.destroy(); } catch(e) {}
+            });
+        }
         const ctxPeso = document.getElementById('chartPeso');
         if (ctxPeso && typeof window.graficoPesoData !== 'undefined') {
             const labelsPeso = window.graficoPesoData.map(d => d.x);
@@ -19,12 +26,12 @@
                     datasets: [{
                         label: 'Peso (kg)',
                         data: dataPeso,
-                        borderColor: '#EF4444',
-                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        borderColor: '#D4AF37',
+                        backgroundColor: 'rgba(212, 175, 55, 0.15)',
                         borderWidth: 2,
                         tension: 0.3,
                         fill: true,
-                        pointBackgroundColor: '#EF4444'
+                        pointBackgroundColor: '#D4AF37'
                     }]
                 },
                 options: {
@@ -50,7 +57,7 @@
                 afterDatasetsDraw(chart, args, options) {
                     const {ctx} = chart;
                     ctx.save();
-                    ctx.font = 'bold 11px Inter, sans-serif';
+                    ctx.font = 'bold 11px "Plus Jakarta Sans", sans-serif';
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
                     
@@ -95,8 +102,8 @@
                 data: {
                     labels: labelsCal,
                     datasets: [
-                        { label: 'Refeição Planejada', data: dataDieta, backgroundColor: '#10B981', borderRadius: 0 },
-                        { label: 'Vilões (Extra)', data: dataExtra, backgroundColor: '#EF4444', borderRadius: 0 }
+                        { label: 'Refeição Planejada', data: dataDieta, backgroundColor: '#F8FAFC', borderRadius: 4 },
+                        { label: 'Vilões (Extra)', data: dataExtra, backgroundColor: '#D946EF', borderRadius: 4 }
                     ]
                 },
                 options: {
@@ -211,7 +218,7 @@
     }
 
     function removeRegistroFromTable(registroId) {
-        const tr = document.querySelector(\`tr[data-id="\${registroId}"]\`);
+        const tr = document.querySelector(`tr[data-id="${registroId}"]`);
         if (tr) tr.remove();
         
         const tbody = document.querySelector('.history-table tbody');
@@ -240,14 +247,23 @@
                               
         if (!isAlimentacao) return;
 
-        e.preventDefault();
+        if (form.dataset.submitting) {
+            e.preventDefault();
+            return;
+        }
 
-        const btn = form.querySelector('button[type="submit"]');
+        e.preventDefault();
+        form.dataset.submitting = 'true';
+
+        const btn = e.submitter || form.querySelector('button[type="submit"]');
         let originalHtml = '';
-        if (btn) {
+        if (btn && !btn.hasAttribute('data-original-html')) {
             originalHtml = btn.innerHTML;
+            btn.setAttribute('data-original-html', originalHtml);
             btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';
             btn.disabled = true;
+        } else if (btn) {
+            originalHtml = btn.getAttribute('data-original-html');
         }
 
         try {
@@ -272,11 +288,11 @@
                     form.classList.remove('form-add-dieta');
                     form.classList.add('form-remove-dieta');
                     form.action = '/remove_registro_dieta';
-                    form.innerHTML = \`
-                        <input type="hidden" name="data" value="\${dataStr}">
-                        <input type="hidden" name="nome" value="\${data.registro.nome}">
+                    form.innerHTML = `
+                        <input type="hidden" name="data" value="${dataStr}">
+                        <input type="hidden" name="nome" value="${data.registro.nome}">
                         <button type="submit" class="btn-check checked"><i class="ph ph-check-square"></i></button>
-                    \`;
+                    `;
                     addRegistroToTable(data.registro, dataStr);
                 } 
                 else if (form.classList.contains('form-remove-dieta')) {
@@ -285,16 +301,16 @@
                     form.classList.add('form-add-dieta');
                     form.action = '/add_registro_alimentacao';
                     const calText = form.parentElement.querySelector('.refeicao-nome').textContent;
-                    const calMatch = calText.match(/\\((\\d+)\\s*kcal\\)/);
+                    const calMatch = calText.match(/\((\d+)\s*kcal\)/);
                     const cal = calMatch ? calMatch[1] : 0;
                     
-                    form.innerHTML = \`
-                        <input type="hidden" name="data" value="\${dataStr}">
-                        <input type="hidden" name="nome" value="\${data.nome}">
-                        <input type="hidden" name="calorias" value="\${cal}">
+                    form.innerHTML = `
+                        <input type="hidden" name="data" value="${dataStr}">
+                        <input type="hidden" name="nome" value="${data.nome}">
+                        <input type="hidden" name="calorias" value="${cal}">
                         <input type="hidden" name="tipo" value="Dieta">
                         <button type="submit" class="btn-check"><i class="ph ph-square"></i></button>
-                    \`;
+                    `;
                     const trs = document.querySelectorAll('.history-table tbody tr');
                     trs.forEach(tr => {
                         if (tr.children[0].textContent === data.nome) tr.remove();
@@ -319,19 +335,19 @@
                     const newDiv = document.createElement('div');
                     newDiv.className = 'refeicao-item';
                     newDiv.style = "display:flex; align-items:center;";
-                    newDiv.innerHTML = \`
+                    newDiv.innerHTML = `
                         <form action="/add_registro_alimentacao" method="POST" style="margin:0;" class="ajax-form form-add-dieta">
-                            <input type="hidden" name="data" value="\${dataStr || new Date().toISOString().split('T')[0]}">
-                            <input type="hidden" name="nome" value="\${data.refeicao.nome}">
-                            <input type="hidden" name="calorias" value="\${data.refeicao.calorias}">
+                            <input type="hidden" name="data" value="${dataStr || new Date().toISOString().split('T')[0]}">
+                            <input type="hidden" name="nome" value="${data.refeicao.nome}">
+                            <input type="hidden" name="calorias" value="${data.refeicao.calorias}">
                             <input type="hidden" name="tipo" value="Dieta">
                             <button type="submit" class="btn-check"><i class="ph ph-square"></i></button>
                         </form>
-                        <span class="refeicao-nome">\${data.refeicao.nome} (\${data.refeicao.calorias} kcal)</span>
-                        <form action="/delete_refeicao_fixa/\${data.refeicao.id}" method="POST" style="margin: 0 0 0 auto;" onsubmit="return confirm('Deseja remover esta refeição do seu cardápio fixo?');" class="ajax-form form-delete-refeicao">
+                        <span class="refeicao-nome">${data.refeicao.nome} (${data.refeicao.calorias} kcal)</span>
+                        <form action="/delete_refeicao_fixa/${data.refeicao.id}" method="POST" style="margin: 0 0 0 auto;" onsubmit="return confirm('Deseja remover esta refeição do seu cardápio fixo?');" class="ajax-form form-delete-refeicao">
                             <button type="submit" class="btn-icon btn-danger" title="Excluir Refeição Fixa" style="padding: 2px;"><i class="ph ph-trash"></i></button>
                         </form>
-                    \`;
+                    `;
                     const hr = document.querySelector('.card-checklist hr');
                     if (hr) hr.parentNode.insertBefore(newDiv, hr);
                     form.reset();
@@ -343,8 +359,10 @@
         } catch (error) {
             console.error(error);
         } finally {
+            delete form.dataset.submitting;
             if (btn && document.body.contains(btn)) {
-                btn.innerHTML = originalHtml;
+                btn.innerHTML = originalHtml || btn.getAttribute('data-original-html') || btn.innerHTML;
+                btn.removeAttribute('data-original-html');
                 btn.disabled = false;
             }
         }

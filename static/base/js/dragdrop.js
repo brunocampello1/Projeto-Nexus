@@ -1,7 +1,11 @@
 // Drag and drop para reordenação de tarefas
-document.addEventListener('DOMContentLoaded', () => {
+function initDragDrop() {
     const list = document.getElementById('tasks-list');
     if (!list) return;
+
+    // Prevent duplicate listeners by checking a flag
+    if (list.dataset.dragInitialized === 'true') return;
+    list.dataset.dragInitialized = 'true';
 
     let dragging = null;
     const placeholder = document.createElement('div');
@@ -78,4 +82,9 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error(err);
         }
     }
+}
+
+// Initialize on first load
+document.addEventListener('DOMContentLoaded', () => {
+    initDragDrop();
 });

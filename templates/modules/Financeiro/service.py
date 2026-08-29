@@ -22,7 +22,13 @@ def _fetch_single_price(item):
         hist = ticker.history(period="5d")
         if hist is None or hist.empty:
             return item["display"], None
-        price = hist["Close"].iloc[-1]
+            
+        valid_close = hist["Close"].dropna()
+            
+        price = valid_close.iloc[-1]
+        
+        if math.isnan(price):
+            return item["display"], None
         return item["display"], round(float(price), 2)
     except Exception as e:
         print(f"Erro ao buscar {symbol}: {e}")
@@ -38,8 +44,9 @@ def fetch_prices(portfolio):
     if has_usd:
         try:
             hist = yf.Ticker("BRL=X").history(period="5d")
-            if not hist.empty:
-                usd_brl_rate = float(hist["Close"].iloc[-1])
+            valid_brl = hist["Close"].dropna()
+            if not valid_brl.empty:
+                usd_brl_rate = float(valid_brl.iloc[-1])
         except Exception as e:
             print(f"Erro ao buscar cotacao do dolar: {e}")
             
@@ -384,8 +391,12 @@ def formatar_ticker_yahoo(
     if ticker.endswith(".SA"):
         return ticker
 
-    # Ações B3
-    return f"{ticker}.SA"
+    # Se terminar com número (Padrão B3: PETR4, BOVA11, AAPL34), adiciona .SA
+    if ticker[-1].isdigit():
+        return f"{ticker}.SA"
+
+    # Caso contrário (Padrão Americano: AAPL, PBR, MSFT), retorna como está
+    return ticker
 
 def buscar_ativos(termo):
     """

@@ -4,66 +4,57 @@ document.addEventListener('DOMContentLoaded', () => {
     initAppListeners();
 
 
-    const themeToggle = document.getElementById('themeToggle');
-    if (themeToggle) {
-        themeToggle.addEventListener('click', () => {
+    // Event delegation global para elementos de layout (Sidebar, Menus, Theme Toggle)
+    document.addEventListener('click', (e) => {
+        // Theme Toggle
+        const themeToggle = e.target.closest('#themeToggle');
+        if (themeToggle) {
             const current = document.documentElement.getAttribute('data-theme') || 'light';
             applyTheme(current === 'dark' ? 'light' : 'dark');
-        });
-    }
+            return;
+        }
 
-    // Controle de Sidebar Responsiva (Mobile)
-    const sidebar = document.getElementById('sidebar');
-    const hamburgerBtn = document.getElementById('hamburgerBtn');
-    const sidebarCloseBtn = document.getElementById('sidebarCloseBtn');
-    const sidebarOverlay = document.getElementById('sidebarOverlay');
+        // Sidebar responsiva (Mobile)
+        const hamburgerBtn = e.target.closest('#hamburgerBtn');
+        const sidebarCloseBtn = e.target.closest('#sidebarCloseBtn');
+        const sidebarOverlayClick = e.target.closest('#sidebarOverlay');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
 
-    function toggleSidebar() {
-        sidebar.classList.toggle('show');
-        sidebarOverlay.classList.toggle('show');
-        document.body.classList.toggle('no-scroll');
-    }
+        if ((hamburgerBtn || sidebarCloseBtn || sidebarOverlayClick) && sidebar && sidebarOverlay) {
+            sidebar.classList.toggle('show');
+            sidebarOverlay.classList.toggle('show');
+            document.body.classList.toggle('no-scroll');
+            if (sidebarOverlayClick) return; // Se clicou no overlay, já tratou
+        }
 
-    if (hamburgerBtn && sidebar && sidebarOverlay) {
-        hamburgerBtn.addEventListener('click', toggleSidebar);
-    }
-    if (sidebarCloseBtn) {
-        sidebarCloseBtn.addEventListener('click', toggleSidebar);
-    }
-    if (sidebarOverlay) {
-        sidebarOverlay.addEventListener('click', toggleSidebar);
+        // Submenus (Produtividade e Dashboards)
+        const prodToggle = e.target.closest('#productivityToggle');
+        if (prodToggle) {
+            const prodSub = document.getElementById('productivitySubmenu');
+            if (prodSub) {
+                const expanded = prodToggle.getAttribute('aria-expanded') === 'true';
+                prodToggle.setAttribute('aria-expanded', !expanded);
+                prodSub.style.display = expanded ? 'none' : 'block';
+                const arrow = prodToggle.querySelector('.submenu-arrow');
+                if (arrow) arrow.style.transform = expanded ? 'rotate(0deg)' : 'rotate(180deg)';
+            }
+            return;
+        }
 
-// Produtividade submenu toggle
-const productivityToggle = document.getElementById('productivityToggle');
-const productivitySubmenu = document.getElementById('productivitySubmenu');
-if (productivityToggle && productivitySubmenu) {
-  productivityToggle.addEventListener('click', () => {
-    const expanded = productivityToggle.getAttribute('aria-expanded') === 'true';
-    productivityToggle.setAttribute('aria-expanded', !expanded);
-    productivitySubmenu.style.display = expanded ? 'none' : 'block';
-    const arrow = productivityToggle.querySelector('.submenu-arrow');
-    if (arrow) {
-      arrow.style.transform = expanded ? 'rotate(0deg)' : 'rotate(180deg)';
-    }
-  });
-}
-
-// Dashboards submenu toggle
-const dashboardsToggle = document.getElementById('dashboardsToggle');
-const dashboardsSubmenu = document.getElementById('dashboardsSubmenu');
-if (dashboardsToggle && dashboardsSubmenu) {
-  dashboardsToggle.addEventListener('click', () => {
-    const expanded = dashboardsToggle.getAttribute('aria-expanded') === 'true';
-    dashboardsToggle.setAttribute('aria-expanded', !expanded);
-    dashboardsSubmenu.style.display = expanded ? 'none' : 'block';
-    const arrow = dashboardsToggle.querySelector('.submenu-arrow');
-    if (arrow) {
-      arrow.style.transform = expanded ? 'rotate(0deg)' : 'rotate(180deg)';
-    }
-  });
-}
-
-    }
+        const dashToggle = e.target.closest('#dashboardsToggle');
+        if (dashToggle) {
+            const dashSub = document.getElementById('dashboardsSubmenu');
+            if (dashSub) {
+                const expanded = dashToggle.getAttribute('aria-expanded') === 'true';
+                dashToggle.setAttribute('aria-expanded', !expanded);
+                dashSub.style.display = expanded ? 'none' : 'block';
+                const arrow = dashToggle.querySelector('.submenu-arrow');
+                if (arrow) arrow.style.transform = expanded ? 'rotate(0deg)' : 'rotate(180deg)';
+            }
+            return;
+        }
+    });
 
     // Interceptor SPA movido para o escopo global
 });
@@ -608,17 +599,34 @@ document.addEventListener('submit', async (e) => {
     const form = e.target;
     if (form.classList.contains('no-ajax')) return;
     if (form.classList.contains('ajax-form')) return;
-    if (form.getAttribute('onsubmit') && e.defaultPrevented) return;
-    
+
+    if (form.dataset.submitting) {
+        e.preventDefault();
+        return;
+    }
+
+    // Handle confirm() dialogs from onsubmit attributes
+    if (form.getAttribute('onsubmit')) {
+        const result = new Function(form.getAttribute('onsubmit')).call(form);
+        if (result === false) {
+            e.preventDefault();
+            return;
+        }
+    }
+
     e.preventDefault();
-    
-    const btn = form.querySelector('button[type="submit"]');
+    form.dataset.submitting = 'true';
+
+    const btn = e.submitter || form.querySelector('button[type="submit"]');
     let originalContent = '';
-    if (btn) {
+    if (btn && !btn.hasAttribute('data-original-html')) {
         originalContent = btn.innerHTML;
+        btn.setAttribute('data-original-html', originalContent);
         btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';
         btn.style.opacity = '0.7';
         btn.disabled = true;
+    } else if (btn) {
+        originalContent = btn.getAttribute('data-original-html');
     }
 
     const formData = new FormData(form);
@@ -634,8 +642,10 @@ document.addEventListener('submit', async (e) => {
 
     await navigateSPA(url, options);
 
+    delete form.dataset.submitting;
     if (btn && document.body.contains(btn)) {
-        btn.innerHTML = originalContent;
+        btn.innerHTML = originalContent || btn.getAttribute('data-original-html') || btn.innerHTML;
+        btn.removeAttribute('data-original-html');
         btn.style.opacity = '1';
         btn.disabled = false;
     }

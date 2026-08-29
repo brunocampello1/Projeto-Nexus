@@ -8,11 +8,18 @@
 .kpi-card {
     flex: 1;
     min-width: 150px;
-    background: var(--surface, #fff);
+    background: var(--surface);
     border: 1px solid var(--border-color);
-    border-radius: 0;
-    padding: 0.5rem;
-    box-shadow: none;
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    box-shadow: var(--shadow);
+    transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.kpi-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--accent-color);
+    box-shadow: var(--shadow-md);
 }
 
 .kpi-card h3 {
@@ -22,8 +29,8 @@
 }
 
 .kpi-card p {
-    font-size: 1.5rem;
-    font-weight: bold;
+    font-size: 1.75rem;
+    font-weight: 700;
     margin: 0.5rem 0 0.25rem 0;
     color: var(--accent-color);
 }
@@ -52,11 +59,18 @@
 }
 
 .card {
-    background: var(--surface, #fff);
+    background: var(--surface);
     border: 1px solid var(--border-color);
-    border-radius: 0;
-    padding: 0.5rem;
-    box-shadow: none;
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    box-shadow: var(--shadow);
+    transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    border-color: var(--accent-color);
+    box-shadow: var(--shadow-md);
 }
 
 .card h2 {
@@ -104,11 +118,16 @@
     flex-wrap: wrap;
 }
 .vilao-form input {
-    padding: 0.6rem;
+    padding: 0.6rem 1rem;
     border: 1px solid var(--border-color);
-    border-radius: 0;
-    background: var(--surface);
+    border-radius: var(--radius);
+    background: var(--surface-strong);
     color: var(--text-primary);
+    transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+.vilao-form input:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.15); /* Gold focus */
 }
 .vilao-form input[type="text"] {
     flex: 2;
@@ -123,9 +142,15 @@
     background: var(--accent-color);
     color: #fff;
     border: none;
-    border-radius: 0;
+    border-radius: var(--radius);
     font-weight: 600;
     cursor: pointer;
+    transition: background 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+}
+.btn-primary:hover {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow);
 }
 
 .input-group {
@@ -140,11 +165,16 @@
     color: var(--text-secondary);
 }
 .input-group input {
-    padding: 0.6rem;
+    padding: 0.6rem 1rem;
     border: 1px solid var(--border-color);
-    border-radius: 0;
-    background: var(--surface);
+    border-radius: var(--radius);
+    background: var(--surface-strong);
     color: var(--text-primary);
+    transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+.input-group input:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.15); /* Gold focus */
 }
 
 /* History Table */
@@ -168,9 +198,9 @@
 }
 .badge {
     padding: 0.2rem 0.5rem;
-    border-radius: 0;
+    border-radius: var(--radius-sm);
     font-size: 0.75rem;
-    font-weight: bold;
+    font-weight: 700;
 }
 .badge.dieta {
     background: rgba(16, 185, 129, 0.2);

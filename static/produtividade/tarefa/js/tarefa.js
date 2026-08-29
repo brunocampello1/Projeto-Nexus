@@ -22,14 +22,25 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (!isTarefa) return;
         
-        e.preventDefault();
+        if (form.dataset.submitting) {
+            e.preventDefault();
+            return;
+        }
 
-        const btn = form.querySelector('button[type="submit"]');
+        e.preventDefault();
+        form.dataset.submitting = 'true';
+
+        const btn = e.submitter || form.querySelector('button[type="submit"]');
         let originalHtml = '';
         if (btn && form.classList.contains('form-add-tarefa')) {
-            originalHtml = btn.innerHTML;
-            btn.innerHTML = '...';
-            btn.disabled = true;
+            if (!btn.hasAttribute('data-original-html')) {
+                originalHtml = btn.innerHTML;
+                btn.setAttribute('data-original-html', originalHtml);
+                btn.innerHTML = '...';
+                btn.disabled = true;
+            } else {
+                originalHtml = btn.getAttribute('data-original-html');
+            }
         }
 
         try {
@@ -136,8 +147,10 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error(error);
         } finally {
+            delete form.dataset.submitting;
             if (btn && document.body.contains(btn) && form.classList.contains('form-add-tarefa')) {
-                btn.innerHTML = originalHtml;
+                btn.innerHTML = originalHtml || btn.getAttribute('data-original-html') || btn.innerHTML;
+                btn.removeAttribute('data-original-html');
                 btn.disabled = false;
             }
         }

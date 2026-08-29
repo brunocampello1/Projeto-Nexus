@@ -33,11 +33,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data.success) {
                 
                 if (form.classList.contains('form-add-habito')) {
-                    // Pra simplificar, vamos recarregar a página ao adicionar um hábito
-                    // já que envolve desenhar a linha toda com as 7 datas corretas da semana atual
-                    // (que dependem do week_offset). 
-                    // No futuro, isso poderia ser renderizado client-side.
-                    window.location.reload();
+                    // Re-navigate via SPA to refresh the habit table
+                    // (building the full row client-side would require week_offset context)
+                    if (typeof navigateSPA === 'function') {
+                        await navigateSPA(window.location.href);
+                    } else {
+                        window.location.reload();
+                    }
                 }
                 else if (form.classList.contains('form-delete-habito')) {
                     const tr = form.closest('tr');

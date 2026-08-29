@@ -10,7 +10,10 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='base/css/style.css') }}">
     
     <!-- Ícones Phosphor Icons (usados no layout original) -->
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script defer src="https://unpkg.com/@phosphor-icons/web"></script>
+    
+    <!-- Chart.js (global - usado em dashboards) -->
+    <script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <!-- Custom CSS para regras de layout e overflow solicitadas -->
     <style>
@@ -73,9 +76,36 @@
                 padding: 2rem;
             }
         }
+
+        /* SPA Loading Bar */
+        #spa-loading-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            width: 0;
+            background: linear-gradient(90deg, var(--accent-color), var(--success-color));
+            z-index: 99999;
+            transition: width 0.3s ease;
+            pointer-events: none;
+        }
+        #spa-loading-bar.active {
+            width: 70%;
+            transition: width 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        #spa-loading-bar.done {
+            width: 100%;
+            transition: width 0.15s ease;
+        }
+        #spa-loading-bar.hide {
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
     </style>
 </head>
 <body>
+    <!-- SPA Loading Bar -->
+    <div id="spa-loading-bar"></div>
     <div class="app-container">
         <!-- Overlay para fechar sidebar no mobile -->
         <div class="sidebar-overlay" id="sidebarOverlay" aria-hidden="true"></div>
@@ -105,12 +135,12 @@
                     </button>
                     <ul class="submenu" id="dashboardsSubmenu" style="display:none; list-style:none; padding-left:1rem;" role="menu">
                         <li role="menuitem">
-                            <a href="{{ url_for('dashboard_habitos') }}" style="display:flex; align-items:center; gap:0.5rem; text-decoration:none;">
+                            <a href="{{ url_for('dashboard_habitos') }}" style="display:flex; align-items:center; gap:0.5rem; text-decoration:none;" class="{% if request.endpoint == 'dashboard_habitos' %}active-link{% endif %}">
                                 <i class="ph ph-check-circle" style="font-size: 1rem;" aria-hidden="true"></i><span>Hábitos</span>
                             </a>
                         </li>
                         <li role="menuitem">
-                            <a href="{{ url_for('dashboard_alimentacao') }}" style="display:flex; align-items:center; gap:0.5rem; text-decoration:none;">
+                            <a href="{{ url_for('dashboard_alimentacao') }}" style="display:flex; align-items:center; gap:0.5rem; text-decoration:none;" class="{% if request.endpoint == 'dashboard_alimentacao' %}active-link{% endif %}">
                                 <i class="ph ph-fork-knife" style="font-size: 1rem;" aria-hidden="true"></i><span>Alimentação</span>
                             </a>
                         </li>
@@ -126,31 +156,31 @@
                     </button>
                     <ul class="submenu" id="productivitySubmenu" style="display:none; list-style:none; padding-left:1rem;" role="menu">
                         <li role="menuitem">
-                            <a href="{{ url_for('habitos') }}" style="display:flex; align-items:center; gap:0.5rem; text-decoration:none;">
+                            <a href="{{ url_for('habitos') }}" style="display:flex; align-items:center; gap:0.5rem; text-decoration:none;" class="{% if request.endpoint == 'habitos' %}active-link{% endif %}">
                                 <i class="ph ph-check-circle" style="font-size: 1rem;" aria-hidden="true"></i><span>Hábitos</span>
                             </a>
                         </li>
                         <li role="menuitem">
-                            <a href="{{ url_for('tarefas') }}" style="display:flex; align-items:center; gap:0.5rem; text-decoration:none;">
+                            <a href="{{ url_for('tarefas') }}" style="display:flex; align-items:center; gap:0.5rem; text-decoration:none;" class="{% if request.endpoint == 'tarefas' %}active-link{% endif %}">
                                 <i class="ph ph-list-checks" style="font-size: 1rem;" aria-hidden="true"></i><span>Tarefas</span>
                             </a>
                         </li>
                         <li role="menuitem">
-                            <a href="{{ url_for('rotina') }}" style="display:flex; align-items:center; gap:0.5rem; text-decoration:none;">
+                            <a href="{{ url_for('rotina') }}" style="display:flex; align-items:center; gap:0.5rem; text-decoration:none;" class="{% if request.endpoint == 'rotina' %}active-link{% endif %}">
                                 <i class="ph ph-clock" style="font-size: 1rem;" aria-hidden="true"></i><span>Rotina</span>
                             </a>
                         </li>
                         <li role="menuitem">
-                            <a href="{{ url_for('alimentacao') }}" style="display:flex; align-items:center; gap:0.5rem; text-decoration:none;">
+                            <a href="{{ url_for('alimentacao') }}" style="display:flex; align-items:center; gap:0.5rem; text-decoration:none;" class="{% if request.endpoint == 'alimentacao' %}active-link{% endif %}">
                                 <i class="ph ph-fork-knife" style="font-size: 1rem;" aria-hidden="true"></i><span>Alimentação</span>
                             </a>
                         </li>
+                        <li role="menuitem">
+                            <a href="{{ url_for('financeiro.index') }}" style="display:flex; align-items:center; gap:0.5rem; text-decoration:none;" class="{% if 'financeiro' in request.endpoint %}active-link{% endif %}">
+                                <i class="ph ph-currency-dollar" style="font-size: 1rem;" aria-hidden="true"></i><span>Financeiro</span>
+                            </a>
+                        </li>
                     </ul>
-                </li>
-                <li class="sidebar-item" role="menuitem">
-                    <a href="{{ url_for('financeiro.index') }}" class="sidebar-link" style="display:flex; align-items:center; gap:1rem; padding:1rem; color:var(--text-color); text-decoration:none; border-radius:8px;">
-                        <i class="ph ph-currency-dollar" style="font-size: 1rem;" aria-hidden="true"></i><span>Financeiro</span>
-                    </a>
                 </li>
             </ul>
         </nav>
@@ -162,7 +192,11 @@
                 <button class="hamburger-btn" id="hamburgerBtn" aria-label="Abrir menu" type="button" aria-expanded="false" aria-controls="sidebar">
                     <i class="ph ph-list" aria-hidden="true"></i>
                 </button>
-                <div class="topbar-title" style="display:flex; flex-direction:column; justify-content:center; gap:2px; margin-left: 0.5rem;">
+                <div class="topbar-welcome" style="display:flex; flex-direction:column; justify-content:center; gap:2px; margin-left: 0.5rem; margin-right: 1.5rem;">
+                    <span style="font-size:0.85rem; color:var(--text-secondary);">Olá, Bruno</span>
+                    <h1 style="font-size:1.15rem; margin:0; font-weight:600; color:var(--text-primary);">Meu Hub</h1>
+                </div>
+                <div class="topbar-title" style="display:flex; flex-direction:column; justify-content:center; gap:2px; padding-left: 1.5rem; border-left: 1px solid var(--border-color);">
                     {% block topbar_title %}{% endblock %}
                 </div>
                 <div style="flex: 1;"></div>

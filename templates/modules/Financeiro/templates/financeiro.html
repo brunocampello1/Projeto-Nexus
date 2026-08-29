@@ -204,7 +204,7 @@ Financeiro
     border: 1px solid var(--border);
     border-radius: 10px;
     cursor: pointer;
-    font-family: 'Inter', sans-serif;
+    font-family: 'Plus Jakarta Sans', sans-serif;
     font-size: 13px;
     font-weight: 500;
     padding: 9px 16px;
@@ -348,7 +348,7 @@ Financeiro
     padding: 3px 10px;
     border-radius: 20px;
     font-size: 11px;
-    font-family: 'Inter', sans-serif;
+    font-family: 'Plus Jakarta Sans', sans-serif;
     font-weight: 600;
     white-space: nowrap;
   }
@@ -681,7 +681,7 @@ Financeiro
     align-items: center;
     justify-content: center;
     gap: 10px;
-    font-family: 'Inter', sans-serif;
+    font-family: 'Plus Jakarta Sans', sans-serif;
     letter-spacing: 0.02em;
     transition: all 0.25s ease;
     box-shadow: 0 4px 16px rgba(16, 185, 129, 0.25);
@@ -752,7 +752,7 @@ Financeiro
     border-radius: 10px;
     font-weight: 600;
     cursor: pointer;
-    font-family: 'Inter', sans-serif;
+    font-family: 'Plus Jakarta Sans', sans-serif;
     font-size: 13px;
     transition: all 0.2s;
   }
@@ -847,7 +847,7 @@ Financeiro
   }
 </style>
 
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 
 <div class="container financeiro-context">
 
@@ -1853,6 +1853,31 @@ if (localStorage.getItem('financeiro_valores_ocultos') === 'false') {
 } else {
     ocultarValores();
 }
+
+// SPA Global Exports
+window.abrirHistoricoBackups = abrirHistoricoBackups;
+window.abrirModal = abrirModal;
+window.abrirModalLimparCarteira = abrirModalLimparCarteira;
+window.aplicarAlteracoes = aplicarAlteracoes;
+window.atualizarCotacoes = atualizarCotacoes;
+window.baixarRecomendacoes = baixarRecomendacoes;
+window.calcular = calcular;
+window.confirmarAdicionarAtivo = confirmarAdicionarAtivo;
+window.confirmarExibirValores = confirmarExibirValores;
+window.confirmarLimparCarteira = confirmarLimparCarteira;
+window.fecharBackupModal = fecharBackupModal;
+window.fecharModal = fecharModal;
+window.fecharModalExibirValores = fecharModalExibirValores;
+window.fecharModalLimpar = fecharModalLimpar;
+window.redistribuirPesos = redistribuirPesos;
+window.removerAtivo = removerAtivo;
+window.toggleIgnorar = toggleIgnorar;
+window.toggleValores = toggleValores;
+window.marcarAlterado = typeof marcarAlterado === 'function' ? marcarAlterado : undefined;
+window.onPesoChange = typeof onPesoChange === 'function' ? onPesoChange : undefined;
+window.atualizarSomaPesos = typeof atualizarSomaPesos === 'function' ? atualizarSomaPesos : undefined;
+window.restaurarBackup = typeof restaurarBackup === 'function' ? restaurarBackup : undefined;
+window.excluirBackup = typeof excluirBackup === 'function' ? excluirBackup : undefined;
 
 </script>
 {% endblock %}
